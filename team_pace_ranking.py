@@ -4,8 +4,9 @@ from matplotlib import pyplot as plt
 import fastf1
 import fastf1.plotting
 
+
 # @brief team_pace_ranking: Rank race pace of each team
-def team_pace_ranking(Year: int, EventName: str, SessionName: str, race): 
+def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
 
     race.load()
     laps = race.laps.pick_quicklaps()
@@ -24,7 +25,7 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
     team_palette = {team: fastf1.plotting.team_color(team) for team in team_order}
 
     fig, ax = plt.subplots(figsize=(10, 8))
-    
+
     sns.boxplot(
         data=transformed_laps,
         x="Team",
@@ -38,12 +39,10 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
         capprops=dict(color="white"),
     )
 
+    ax.set_xlabel("Team", fontweight="bold")
+    ax.set_ylabel("Lap Time (s)", fontweight="bold")
 
-    ax.set_xlabel("Team", fontweight='bold')
-    ax.set_ylabel("Lap Time (s)", fontweight='bold')
-    
-    plt.suptitle(f"{Year} {EventName} Grand Prix Team Pace Ranking", fontweight='bold')
+    plt.suptitle(f"{Year} {EventName} Grand Prix Team Pace Ranking", fontweight="bold")
     plt.grid(visible=False)
-    
+
     plt.tight_layout()
-    

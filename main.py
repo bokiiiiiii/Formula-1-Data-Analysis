@@ -17,11 +17,11 @@ if __name__ == "__main__":
 
     fastf1.plotting.setup_mpl(mpl_timedelta_support=False, misc_mpl_mods=False)
     race = fastf1.get_session(Year, EventName, SessionName)
-    
+
     plt.ion()
-    
+
     driver_laptimes_distribution(Year, EventName, SessionName, race)
-    team_pace_ranking(Year, EventName, SessionName,race)
-    
+    team_pace_ranking(Year, EventName, SessionName, race)
+
     plt.ioff()
     plt.show(block=True)
