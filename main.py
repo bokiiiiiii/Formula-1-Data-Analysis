@@ -25,9 +25,9 @@ if __name__ == "__main__":
     race = fastf1.get_session(Year, EventName, SessionName)
     driver_laptimes_distribution(Year, EventName, SessionName, race)
     team_pace_ranking(Year, EventName, SessionName, race)
-    
+
     # Qualify
-    SessionName: str = "Q" 
+    SessionName: str = "Q"
     race = fastf1.get_session(Year, EventName, SessionName)
     annotated_qualifying_flying_lap(Year, EventName, SessionName, race)
 

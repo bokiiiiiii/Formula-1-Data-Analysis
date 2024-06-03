@@ -37,17 +37,17 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
         boxprops=dict(edgecolor="white"),
         medianprops=dict(color="white"),
         capprops=dict(color="white"),
-        linewidth=1.7
+        linewidth=1.7,
     )
 
     ax.set_xlabel("Team", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
 
     plt.suptitle(
-        f"{Year} {EventName} Grand Prix Team Pace Ranking", 
+        f"{Year} {EventName} Grand Prix Team Pace Ranking",
         fontweight="bold",
         fontsize=16,
-        )
+    )
     plt.grid(visible=False)
 
     plt.tight_layout()

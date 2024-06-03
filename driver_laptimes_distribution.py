@@ -56,7 +56,7 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
     plt.suptitle(
         f"{Year} {EventName} Grand Prix Driver Lap Time Distributions",
         fontweight="bold",
-        fontsize=16
+        fontsize=16,
     )
     sns.despine(left=True, bottom=True)
 
