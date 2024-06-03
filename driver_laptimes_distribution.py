@@ -21,9 +21,7 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
         for abv, driver in fastf1.plotting.DRIVER_TRANSLATE.items()
     }
 
-    # plt.ion()
-
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
 
     driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
 
@@ -52,12 +50,13 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
         size=4,
     )
 
-    ax.set_xlabel("Driver", fontweight="bold")
-    ax.set_ylabel("Lap Time (s)", fontweight="bold")
+    ax.set_xlabel("Driver", fontweight="bold", fontsize=14)
+    ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
 
     plt.suptitle(
         f"{Year} {EventName} Grand Prix Driver Lap Time Distributions",
         fontweight="bold",
+        fontsize=16
     )
     sns.despine(left=True, bottom=True)
 

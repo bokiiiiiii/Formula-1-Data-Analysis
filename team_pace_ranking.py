@@ -24,7 +24,7 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
 
     team_palette = {team: fastf1.plotting.team_color(team) for team in team_order}
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
 
     sns.boxplot(
         data=transformed_laps,
@@ -35,14 +35,19 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
         palette=team_palette,
         whiskerprops=dict(color="white"),
         boxprops=dict(edgecolor="white"),
-        medianprops=dict(color="grey"),
+        medianprops=dict(color="white"),
         capprops=dict(color="white"),
+        linewidth=1.7
     )
 
-    ax.set_xlabel("Team", fontweight="bold")
-    ax.set_ylabel("Lap Time (s)", fontweight="bold")
+    ax.set_xlabel("Team", fontweight="bold", fontsize=14)
+    ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
 
-    plt.suptitle(f"{Year} {EventName} Grand Prix Team Pace Ranking", fontweight="bold")
+    plt.suptitle(
+        f"{Year} {EventName} Grand Prix Team Pace Ranking", 
+        fontweight="bold",
+        fontsize=16,
+        )
     plt.grid(visible=False)
 
     plt.tight_layout()
