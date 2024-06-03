@@ -6,6 +6,7 @@ import fastf1.plotting
 from driver_laptimes_distribution import driver_laptimes_distribution
 from team_pace_ranking import team_pace_ranking
 from annotated_qualifying_flying_lap import annotated_qualifying_flying_lap
+from driver_laptimes_scatterplot import driver_laptimes_scatterplot
 
 
 Year: int = 2024
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     race = fastf1.get_session(Year, EventName, SessionName)
     driver_laptimes_distribution(Year, EventName, SessionName, race)
     team_pace_ranking(Year, EventName, SessionName, race)
+    driver_laptimes_scatterplot(Year, EventName, SessionName, race)
 
     # Qualify
     SessionName: str = "Q"
