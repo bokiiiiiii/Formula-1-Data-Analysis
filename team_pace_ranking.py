@@ -43,11 +43,16 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
     ax.set_xlabel("Team", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
 
+    suptitle = f"{Year} {EventName} Grand Prix Team Pace Ranking"
+
     plt.suptitle(
-        f"{Year} {EventName} Grand Prix Team Pace Ranking",
+        suptitle,
         fontweight="bold",
         fontsize=16,
     )
     plt.grid(visible=False)
 
     plt.tight_layout()
+
+    filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
+    plt.savefig(filename)

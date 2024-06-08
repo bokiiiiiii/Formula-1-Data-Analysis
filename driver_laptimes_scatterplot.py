@@ -1,6 +1,7 @@
 import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
+from sklearn.linear_model import LinearRegression
 
 import fastf1
 import fastf1.plotting
@@ -69,6 +70,8 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
         for idx, row in stints_stints.iterrows():
             pit_lap += row["LapNumber"]
             pit_lap_array.append(pit_lap)
+        if pit_lap_array:
+            pit_lap_array.pop()
 
         for pit_lap in pit_lap_array:
             ax.axvline(x=pit_lap, color=driver_color, linestyle=lines[i])
@@ -82,11 +85,45 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 horizontalalignment="right",
             )
 
+        for stint in driver_laps["Stint"].unique():
+            stint_laps = driver_laps[driver_laps["Stint"] == stint]
+
+            X = stint_laps["LapNumber"].values.reshape(-1, 1)
+            Y = stint_laps["LapTime(s)"].values.reshape(-1, 1)
+            reg = LinearRegression().fit(X, Y)
+            slope = reg.coef_[0][0]
+
+            sns.regplot(
+                x="LapNumber",
+                y="LapTime(s)",
+                data=stint_laps,
+                ax=ax,
+                scatter=False,
+                color=driver_color,
+                line_kws={"linestyle": lines[i], "linewidth": 1.5},
+            )
+
+            midpoint = (X.min() + X.max()) / 2
+            text_y_position = reg.predict([[midpoint]])[0][0]
+            slope_str = f"+{slope:.3f} s/lap" if slope > 0 else f"{slope:.3f} s/lap"
+            ax.text(
+                midpoint,
+                text_y_position,
+                slope_str,
+                color=driver_color,
+                fontsize=10,
+                fontweight="bold",
+                verticalalignment="bottom",
+            )
+
     ax.set_xlabel("Lap Number", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
+    ax.set_xlim(1, race.laps["LapNumber"].max())
+
+    suptitle = f"{Year} {EventName} Grand Prix Driver Lap Time Variation"
 
     plt.suptitle(
-        f"{Year} {EventName} Grand Prix Driver Lap Time Variation",
+        suptitle,
         fontweight="bold",
         fontsize=16,
     )
@@ -100,5 +137,8 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
         title="Drivers",
         handles=legend_elements,
         loc="upper left",
-        bbox_to_anchor=(0.06, 0.95),
+        bbox_to_anchor=(0.08, 0.95),
     )
+
+    filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
+    plt.savefig(filename)

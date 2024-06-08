@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+import os, textwrap
 
 import fastf1
 import fastf1.plotting
@@ -10,7 +11,19 @@ from driver_laptimes_scatterplot import driver_laptimes_scatterplot
 
 
 Year: int = 2024
-EventName: str = "Monaco"
+EventName: str = "Emilia"
+folder_path = "../Pic"
+
+
+# @brief get_png_files: Get png files in the folder
+# @param floder_path: [in] folder path
+# @return: png files
+def get_png_files(folder_path):
+
+    files = os.listdir(folder_path)
+    png_files = [file for file in files if file.endswith(".png")]
+
+    return png_files
 
 
 # @brief main: Plot F1 data analysis results
@@ -35,3 +48,34 @@ if __name__ == "__main__":
 
     plt.ioff()
     plt.show(block=True)
+
+    png_files = get_png_files(folder_path)
+    titles = []
+
+    for png_file in png_files:
+
+        if f"{Year}" in png_file and f"{EventName}" in png_file:
+
+            title = (
+                png_file.replace(f"{Year}_", "")
+                .replace(f"{EventName}_", "")
+                .replace(".png", "")
+                .replace("_", " ")
+            )
+            titles.append(title)
+
+    titles_str = "\n• ".join(titles)
+
+    caption = textwrap.dedent(
+        f"""\
+🏎️
+« {Year} {EventName} Grand Prix »
+
+• {titles_str}
+
+#formula1"""
+    )
+
+    output_file_path = f"../Pic/{Year}_{EventName}_caption.txt"
+    with open(output_file_path, "w", encoding="utf-8") as f:
+        f.write(caption)
