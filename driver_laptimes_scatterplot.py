@@ -84,15 +84,15 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 verticalalignment="top",
                 horizontalalignment="right",
             )
-            
+
         for stint in driver_laps["Stint"].unique():
             stint_laps = driver_laps[driver_laps["Stint"] == stint]
-            
+
             X = stint_laps["LapNumber"].values.reshape(-1, 1)
             Y = stint_laps["LapTime(s)"].values.reshape(-1, 1)
             reg = LinearRegression().fit(X, Y)
             slope = reg.coef_[0][0]
-            
+
             sns.regplot(
                 x="LapNumber",
                 y="LapTime(s)",
@@ -100,9 +100,9 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 ax=ax,
                 scatter=False,
                 color=driver_color,
-                line_kws={'linestyle': lines[i], 'linewidth': 1.5}
-            )    
-            
+                line_kws={"linestyle": lines[i], "linewidth": 1.5},
+            )
+
             midpoint = (X.min() + X.max()) / 2
             text_y_position = reg.predict([[midpoint]])[0][0]
             slope_str = f"+{slope:.3f} s/lap" if slope > 0 else f"{slope:.3f} s/lap"
@@ -113,8 +113,8 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 color=driver_color,
                 fontsize=10,
                 fontweight="bold",
-                verticalalignment="bottom"
-            )           
+                verticalalignment="bottom",
+            )
 
     ax.set_xlabel("Lap Number", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
@@ -140,5 +140,5 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
         bbox_to_anchor=(0.08, 0.95),
     )
 
-    filename = '../pic/' + suptitle.replace(' ', '_') + '.png'
+    filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)

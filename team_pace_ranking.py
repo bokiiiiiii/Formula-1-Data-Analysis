@@ -51,8 +51,8 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race):
         fontsize=16,
     )
     plt.grid(visible=False)
-    
+
     plt.tight_layout()
-    
-    filename = '../pic/' + suptitle.replace(' ', '_') + '.png'
+
+    filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)

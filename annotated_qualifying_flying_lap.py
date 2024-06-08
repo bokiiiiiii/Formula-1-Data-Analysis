@@ -71,17 +71,18 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
     ax.legend(title="Drivers")
 
     ax.set_ylim([v_min - 40, v_max + 20])
-    
-    suptitle = f"{Year} {EventName} Grand Prix Qualifying Flying Lap Comparison of Front Row"
-    
+
+    suptitle = (
+        f"{Year} {EventName} Grand Prix Qualifying Flying Lap Comparison of Front Row"
+    )
+
     plt.suptitle(
         suptitle,
         fontweight="bold",
         fontsize=16,
     )
-    
+
     plt.tight_layout()
-        
-    filename = '../pic/' + suptitle.replace(' ', '_') + '.png'
+
+    filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)
-    

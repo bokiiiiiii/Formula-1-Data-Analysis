@@ -54,7 +54,7 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
 
     suptitle = f"{Year} {EventName} Grand Prix Driver Lap Time Distributions"
-    
+
     plt.suptitle(
         suptitle,
         fontweight="bold",
@@ -64,5 +64,5 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
 
     plt.tight_layout()
 
-    filename = '../pic/' + suptitle.replace(' ', '_') + '.png'
+    filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)
