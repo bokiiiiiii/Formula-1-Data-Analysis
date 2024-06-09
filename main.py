@@ -20,7 +20,7 @@ folder_path = "../Pic"
 # @brief get_event_names: Get event names in specific year
 # @param year: [in] year
 def get_event_names(year):
-    event_names = fastf1.get_event_schedule(year)['EventName']
+    event_names = fastf1.get_event_schedule(year)["EventName"]
     print(event_names)
 
 
@@ -44,22 +44,20 @@ if __name__ == "__main__":
     plt.ion()
 
     get_event_names(Year)
-    
+
     # Qualify
     if SessionName == "Q":
         race = fastf1.get_session(Year, EventName, SessionName)
         annotated_qualifying_flying_lap(Year, EventName, SessionName, race)
         plot_track_with_annotated_corners(Year, EventName, SessionName, race)
-    
+
     # Race
-    elif SessionName == "R":        
+    elif SessionName == "R":
         race = fastf1.get_session(Year, EventName, SessionName)
         driver_laptimes_distribution(Year, EventName, SessionName, race)
         team_pace_ranking(Year, EventName, SessionName, race)
         driver_laptimes_scatterplot(Year, EventName, SessionName, race)
 
-    
-    
     plt.ioff()
     plt.show(block=True)
 

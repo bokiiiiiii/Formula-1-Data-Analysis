@@ -5,6 +5,7 @@ import fastf1
 import fastf1.plotting
 import fastf1.utils
 
+
 # @brief annotated_qualifying_flying_lap: Plot the speed of a qualifying flying lap and add annotations to mark corners
 def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str, race):
     race.load()
@@ -18,7 +19,7 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
     v_max = float("-inf")
     d_max = float("-inf")
 
-    drivers = list(front_row['Abbreviation'])
+    drivers = list(front_row["Abbreviation"])
     teams = [
         race.laps[race.laps["Driver"] == driver]["Team"].iloc[0] for driver in drivers
     ]
@@ -29,15 +30,19 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
     team_colors = []
 
     for i, driver in enumerate(drivers):
-        _, _, q3lap = race.laps[race.laps["Driver"] == driver].split_qualifying_sessions()
+        _, _, q3lap = race.laps[
+            race.laps["Driver"] == driver
+        ].split_qualifying_sessions()
         lap = q3lap.pick_fastest()
         compared_laps.append(lap)
         car_data = lap.get_car_data().add_distance()
         team_color = fastf1.plotting.team_color(lap["Team"])
         team_colors.append(team_color)
-        
-        lap_time = lap['LapTime']
-        lap_time_str = f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:.3f}"
+
+        lap_time = lap["LapTime"]
+        lap_time_str = (
+            f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:.3f}"
+        )
 
         linestyle = "-" if i == 0 or not same_team else "--"
         ax.plot(
@@ -51,9 +56,11 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
         v_min = min(v_min, car_data["Speed"].min())
         v_max = max(v_max, car_data["Speed"].max())
         d_max = max(d_max, car_data["Distance"].max())
-        
+
         top_speed = car_data["Speed"].max()
-        top_speed_distance = car_data[car_data["Speed"] == top_speed]["Distance"].iloc[0]
+        top_speed_distance = car_data[car_data["Speed"] == top_speed]["Distance"].iloc[
+            0
+        ]
         top_speeds[driver] = top_speed
 
         ax.annotate(
@@ -61,7 +68,7 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
             xy=(top_speed_distance, top_speed),
             xytext=(top_speed_distance + 100, top_speed),
             fontsize=9,
-            color=team_color
+            color=team_color,
         )
 
     speed_diff = abs(top_speeds[drivers[0]] - top_speeds[drivers[1]])
@@ -94,20 +101,23 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
     ax.set_ylim([v_min - 40, v_max + 40])
     ax.set_xlim([0, d_max])
 
-    
     delta_time, ref_tel, _ = fastf1.utils.delta_time(compared_laps[0], compared_laps[1])
     twin = ax.twinx()
-    twin.plot(ref_tel['Distance'], delta_time, '--', color='white')
-    twin.set_ylabel(
-    r'$\mathbf{Delta\ Lap\ Time\ (s)}$',
-    fontsize=14
+    twin.plot(ref_tel["Distance"], delta_time, "--", color="white")
+    twin.set_ylabel(r"$\mathbf{Delta\ Lap\ Time\ (s)}$", fontsize=14)
+    plt.text(
+        d_max * 1.1,
+        0,
+        f"<<  {drivers[1]} ahead  |  {drivers[0]} ahead  >>",
+        fontsize=12,
+        rotation=90,
+        ha="center",
+        va="center",
     )
-    plt.text(d_max*1.1, 0, f"<<  {drivers[1]} ahead  |  {drivers[0]} ahead  >>", fontsize=12, rotation=90, ha='center', va='center')
 
-    twin_ylim = max(abs(delta_time.min()), abs(delta_time.max()))+0.1
+    twin_ylim = max(abs(delta_time.min()), abs(delta_time.max())) + 0.1
     twin.set_ylim([-twin_ylim, twin_ylim])
-    
-    
+
     suptitle = (
         f"{Year} {EventName} Grand Prix Front Row Qualifying Flying Lap Comparison"
     )
@@ -117,9 +127,9 @@ def annotated_qualifying_flying_lap(Year: int, EventName: str, SessionName: str,
         fontweight="bold",
         fontsize=16,
     )
-    
-    subtitle="with Track Corners Annotated"
-    plt.figtext(0.5, 0.94, subtitle, ha='center', fontsize=14)
+
+    subtitle = "with Track Corners Annotated"
+    plt.figtext(0.5, 0.94, subtitle, ha="center", fontsize=14)
 
     plt.tight_layout()
 
