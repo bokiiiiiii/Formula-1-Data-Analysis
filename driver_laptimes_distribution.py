@@ -35,6 +35,7 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
         density_norm="area",
         order=finishing_order,
         palette=driver_colors,
+        alpha=0.4,
     )
 
     # Show the actual laptimes

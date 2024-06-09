@@ -24,12 +24,11 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
     stints = stints.groupby(["Driver", "Stint"])
     stints = stints.count().reset_index()
     print(stints)
-
+    pit_lap_array = []
     legend_elements = []
     for i, driver in enumerate(podium_finishers):
-
-        driver_laps = race.laps.pick_drivers(driver).pick_quicklaps()
-
+        print(i)
+        driver_laps = race.laps.pick_drivers(driver).pick_quicklaps(1.03) # Need adjustment
         driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
 
         driver_laps = driver_laps.reset_index()
@@ -66,24 +65,18 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
         stints_stints = stints.loc[stints["Driver"] == driver_abbr]
 
         pit_lap = 0
-        pit_lap_array = []
+        pit_lap_line_array = []
         for idx, row in stints_stints.iterrows():
             pit_lap += row["LapNumber"]
-            pit_lap_array.append(pit_lap)
+            if pit_lap not in pit_lap_array:
+                pit_lap_array.append(pit_lap)
+            pit_lap_line_array.append(pit_lap + 0.25*i)
         if pit_lap_array:
             pit_lap_array.pop()
+            pit_lap_line_array.pop()
 
-        for pit_lap in pit_lap_array:
-            ax.axvline(x=pit_lap, color=driver_color, linestyle=lines[i])
-            ax.text(
-                pit_lap,
-                driver_laps["LapTime(s)"].max() - 0.1,
-                "Pit Lap",
-                rotation=90,
-                color="grey",
-                verticalalignment="top",
-                horizontalalignment="right",
-            )
+        for pit_lap_line in pit_lap_line_array:
+            ax.axvline(x=pit_lap_line, color=driver_color, linestyle='-', linewidth=1.5)
 
         for stint in driver_laps["Stint"].unique():
             stint_laps = driver_laps[driver_laps["Stint"] == stint]
@@ -100,10 +93,13 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 ax=ax,
                 scatter=False,
                 color=driver_color,
-                line_kws={"linestyle": lines[i], "linewidth": 1.5},
+                line_kws={"linestyle": lines[i], "linewidth": 1.4},
             )
 
-            midpoint = (X.min() + X.max()) / 2
+            if i == 0:
+                midpoint = (X.min() + X.max()) / 2 - 1
+            else: # i == 1
+                midpoint = (X.min() + X.max()) / 2 + 1
             text_y_position = reg.predict([[midpoint]])[0][0]
             slope_str = f"+{slope:.3f} s/lap" if slope > 0 else f"{slope:.3f} s/lap"
             ax.text(
@@ -112,10 +108,25 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 slope_str,
                 color=driver_color,
                 fontsize=10,
-                fontweight="bold",
+                fontweight="bold", 
                 verticalalignment="bottom",
             )
 
+    for pit_lap in pit_lap_array:
+        ax.text(
+            pit_lap,
+            driver_laps["LapTime(s)"].max() - 0.1,
+            "Pit Lap",
+            rotation=90,
+            color="grey",
+            fontsize=10,
+            fontweight="bold",
+            verticalalignment="top",
+            horizontalalignment="right",
+        )
+        
+        ax.axvspan(pit_lap - 0.5, pit_lap + 0.5, color='grey', alpha=0.3)
+    
     ax.set_xlabel("Lap Number", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
     ax.set_xlim(1, race.laps["LapNumber"].max())
@@ -127,7 +138,10 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
         fontweight="bold",
         fontsize=16,
     )
-
+    
+    subtitle="with Lap Time Variation Rate and Pit Lap Annotated"
+    plt.figtext(0.5, 0.94, subtitle, ha='center', fontsize=14)
+    
     sns.despine(left=True, bottom=True)
 
     plt.tight_layout()

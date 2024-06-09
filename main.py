@@ -8,11 +8,20 @@ from driver_laptimes_distribution import driver_laptimes_distribution
 from team_pace_ranking import team_pace_ranking
 from annotated_qualifying_flying_lap import annotated_qualifying_flying_lap
 from driver_laptimes_scatterplot import driver_laptimes_scatterplot
+from plot_track_with_annotated_corners import plot_track_with_annotated_corners
 
 
 Year: int = 2024
-EventName: str = "Emilia"
+EventName: str = "Emilia Romagna"
+SessionName: str = "R"
 folder_path = "../Pic"
+
+
+# @brief get_event_names: Get event names in specific year
+# @param year: [in] year
+def get_event_names(year):
+    event_names = fastf1.get_event_schedule(year)['EventName']
+    print(event_names)
 
 
 # @brief get_png_files: Get png files in the folder
@@ -34,18 +43,23 @@ if __name__ == "__main__":
 
     plt.ion()
 
-    # Race
-    SessionName: str = "R"
-    race = fastf1.get_session(Year, EventName, SessionName)
-    driver_laptimes_distribution(Year, EventName, SessionName, race)
-    team_pace_ranking(Year, EventName, SessionName, race)
-    driver_laptimes_scatterplot(Year, EventName, SessionName, race)
-
+    get_event_names(Year)
+    
     # Qualify
-    SessionName: str = "Q"
-    race = fastf1.get_session(Year, EventName, SessionName)
-    annotated_qualifying_flying_lap(Year, EventName, SessionName, race)
+    if SessionName == "Q":
+        race = fastf1.get_session(Year, EventName, SessionName)
+        annotated_qualifying_flying_lap(Year, EventName, SessionName, race)
+        plot_track_with_annotated_corners(Year, EventName, SessionName, race)
+    
+    # Race
+    elif SessionName == "R":        
+        race = fastf1.get_session(Year, EventName, SessionName)
+        driver_laptimes_distribution(Year, EventName, SessionName, race)
+        team_pace_ranking(Year, EventName, SessionName, race)
+        driver_laptimes_scatterplot(Year, EventName, SessionName, race)
 
+    
+    
     plt.ioff()
     plt.show(block=True)
 
@@ -65,7 +79,6 @@ if __name__ == "__main__":
             titles.append(title)
 
     titles_str = "\n• ".join(titles)
-
     caption = textwrap.dedent(
         f"""\
 🏎️
@@ -73,7 +86,7 @@ if __name__ == "__main__":
 
 • {titles_str}
 
-#formula1"""
+#formula1 #{EventName}"""
     )
 
     output_file_path = f"../Pic/{Year}_{EventName}_caption.txt"
