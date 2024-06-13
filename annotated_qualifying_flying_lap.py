@@ -10,7 +10,7 @@ import fastf1.utils
 def annotated_qualifying_flying_lap(
     Year: int, EventName: str, SessionName: str, race, post: bool
 ) -> dict:
-    
+
     race.load()
 
     quali_results = race.results
@@ -33,7 +33,7 @@ def annotated_qualifying_flying_lap(
     team_colors = []
     drivers_abbr = []
     bg_color = ax.get_facecolor()
-    
+
     for i, driver in enumerate(drivers):
         _, _, q3lap = race.laps[
             race.laps["Driver"] == driver
@@ -75,9 +75,9 @@ def annotated_qualifying_flying_lap(
             fontsize=9,
             fontweight="bold",
             color=team_color,
-            bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor='none'),
+            bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
         )
-        
+
         driver_abbr = race.get_driver(driver)["Abbreviation"]
         drivers_abbr.append(driver_abbr)
 
@@ -115,11 +115,11 @@ def annotated_qualifying_flying_lap(
     twin = ax.twinx()
     twin.plot(ref_tel["Distance"], delta_time, "--", color="white")
     twin.set_ylabel(r"$\mathbf{Delta\ Lap\ Time\ (s)}$", fontsize=14)
-    twin.yaxis.set_major_formatter(lambda x, pos: f'+{x:.1f}' if x > 0 else f'{x:.1f}')
+    twin.yaxis.set_major_formatter(lambda x, pos: f"+{x:.1f}" if x > 0 else f"{x:.1f}")
     plt.text(
         d_max * 1.075,
         0,
-        f"←  {drivers[1]}  ahead"    
+        f"←  {drivers[1]}  ahead"
         f"                                                                                                                         "
         f"{drivers[0]}  ahead  →",
         fontsize=12,
@@ -131,9 +131,7 @@ def annotated_qualifying_flying_lap(
     twin_ylim = max(abs(delta_time.min()), abs(delta_time.max())) + 0.1
     twin.set_ylim([-twin_ylim, twin_ylim])
 
-    suptitle = (
-        f"{Year} {EventName} Grand Prix Front Row Qualifying Flying Lap"
-    )
+    suptitle = f"{Year} {EventName} Grand Prix Front Row Qualifying Flying Lap"
 
     plt.suptitle(
         suptitle,
@@ -144,8 +142,14 @@ def annotated_qualifying_flying_lap(
     subtitle = "with Track Corners Annotated"
     subtitle_lower = f"{drivers_abbr[0]} vs {drivers_abbr[1]}"
     pltbg_color = fig.get_facecolor()
-    plt.figtext(0.5, 0.937, subtitle, ha="center", fontsize=14,
-            bbox=dict(facecolor=pltbg_color, alpha=0.5, edgecolor='none'))
+    plt.figtext(
+        0.5,
+        0.937,
+        subtitle,
+        ha="center",
+        fontsize=14,
+        bbox=dict(facecolor=pltbg_color, alpha=0.5, edgecolor="none"),
+    )
     axbg_color = ax.get_facecolor()
     plt.figtext(0.5, 0.912, subtitle_lower, ha="center", fontsize=12, fontweight="bold")
 
@@ -153,23 +157,23 @@ def annotated_qualifying_flying_lap(
 
     filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)
-    
+
     titles_str = (
         suptitle.replace(f"{Year} ", "")
         .replace(f"{EventName} ", "")
         .replace("Grand Prix ", "")
     )
-    
+
     plt.savefig(filename)
- 
+
     caption = textwrap.dedent(
-    f"""\
+        f"""\
 🏎️
 « {Year} {EventName} Grand Prix »
 
 • {titles_str}
 
 #formula1 #{EventName.replace(" ", "")}"""
-)   
-    
+    )
+
     return {"filename": filename, "caption": caption, "post": post}

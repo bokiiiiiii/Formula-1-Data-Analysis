@@ -9,9 +9,12 @@ import fastf1.plotting
 
 QUICKLAP_THRESHOLD = 1.25
 
+
 # @brief driver_laptimes_scatterplot: Plot driver lap times variation with pit lap annotations
-def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, race, post: bool) -> dict:
-    
+def driver_laptimes_scatterplot(
+    Year: int, EventName: str, SessionName: str, race, post: bool
+) -> dict:
+
     race.load()
 
     podium_finishers = race.drivers[:2]
@@ -75,7 +78,7 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
         stints_stints = stints.loc[stints["Driver"] == driver_abbr]
 
         pit_lap = 0
-        
+
         for idx, row in stints_stints.iterrows():
             pit_lap += row["LapNumber"]
             if pit_lap not in pit_lap_array:
@@ -90,7 +93,7 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
             ax.axvline(x=pit_lap_line, color=driver_color, linestyle="-", linewidth=1.5)
 
         for stint in driver_laps["Stint"].unique():
-            
+
             stint_laps = driver_laps[driver_laps["Stint"] == stint]
             tire_type = stint_laps["Compound"].iloc[0]
             tire_type_array.append(tire_type)
@@ -116,7 +119,7 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
                 midpoint = (X.min() + X.max()) / 2 + 1
             text_y_position = reg.predict([[midpoint]])[0][0]
             slope_str = f"+{slope:.3f} s/lap" if slope > 0 else f"{slope:.3f} s/lap"
-            slope_str_array.append(slope_str.replace(' s/lap',''))
+            slope_str_array.append(slope_str.replace(" s/lap", ""))
             ax.text(
                 midpoint,
                 text_y_position,
@@ -150,20 +153,33 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
     ax.set_xlim(1, race.laps["LapNumber"].max())
 
     suptitle = f"{Year} {EventName} Grand Prix Driver Lap Time Variation"
-    
+
     plt.suptitle(
         suptitle,
         fontweight="bold",
         fontsize=16,
     )
-    
+
     subtitle_upper = "with Lap Time Variation Rate and Pit Lap Annotated"
     subtitle_lower = f"{drivers_abbr[0]} vs {drivers_abbr[1]}"
     bg_color = ax.get_facecolor()
-    plt.figtext(0.5, 0.935, subtitle_upper, ha="center", fontsize=14,
-            bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor='none'))
-    plt.figtext(0.5, 0.912, subtitle_lower, ha="center", fontsize=12, fontweight="bold",
-            bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor='none'))
+    plt.figtext(
+        0.5,
+        0.935,
+        subtitle_upper,
+        ha="center",
+        fontsize=14,
+        bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
+    )
+    plt.figtext(
+        0.5,
+        0.912,
+        subtitle_lower,
+        ha="center",
+        fontsize=12,
+        fontweight="bold",
+        bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
+    )
 
     sns.despine(left=True, bottom=True)
 
@@ -179,15 +195,15 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
 
     filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)
-    
+
     titles_str = (
         suptitle.replace(f"{Year} ", "")
         .replace(f"{EventName} ", "")
         .replace("Grand Prix ", "")
     )
-    
+
     print(slope_str_arrays)
-    
+
     caption = f"""\
 🏎️
 « {Year} {EventName} Grand Prix »
@@ -213,5 +229,5 @@ def driver_laptimes_scatterplot(Year: int, EventName: str, SessionName: str, rac
 \t{' → '.join(slope_str_arrays[1])}
     
 #formula1 #{EventName.replace(" ", "")}"""
-    
-    return {"filename": filename, "caption": caption, "post": post}   
+
+    return {"filename": filename, "caption": caption, "post": post}

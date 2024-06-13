@@ -12,21 +12,19 @@ from plot_track_with_annotated_corners import plot_track_with_annotated_corners
 from auto_ig_post import auto_ig_post
 
 
-
 Year: int = 2024
 EventName: str = "Canadian"
 SessionName: str = "Q+R"
 folder_path: str = "../Pic"
 block: bool = True
 post_ig_params: dict = {
-    'annotated_qualifying_flying_lap': False,
-    'plot_track_with_annotated_corners': False,
-    'driver_laptimes_distribution': False,
-    'team_pace_ranking': False,
-    'driver_laptimes_scatterplot': False,
+    "annotated_qualifying_flying_lap": False,
+    "plot_track_with_annotated_corners": False,
+    "driver_laptimes_distribution": False,
+    "team_pace_ranking": False,
+    "driver_laptimes_scatterplot": False,
 }
 post_ig_dict: dict = {}
-
 
 
 # @brief get_event_names: Get event names in specific year
@@ -53,11 +51,11 @@ def organize_png_files_name() -> None:
     titles = []
 
     EventName_ = EventName.replace(" ", "_")
-    
+
     for png_file in png_files:
 
         if f"{Year}" in png_file and f"{EventName_}" in png_file:
-            
+
             title = (
                 png_file.replace(f"{Year}_", "")
                 .replace(f"{EventName_}_", "")
@@ -86,8 +84,8 @@ def organize_png_files_name() -> None:
 # @brief post_ig: Post images on instagram
 def post_ig() -> None:
     for key, value in post_ig_dict.items():
-        if value['post']:
-            auto_ig_post(value['filename'], value['caption'])
+        if value["post"]:
+            auto_ig_post(value["filename"], value["caption"])
             time.sleep(60)
 
 
@@ -95,30 +93,63 @@ def post_ig() -> None:
 # @param block: [in] plt.show block or not
 def plot_f1_data_analysis_images(block: bool) -> None:
     fastf1.plotting.setup_mpl(mpl_timedelta_support=False, misc_mpl_mods=False)
-    fastf1.Cache.enable_cache('../cache') 
-    plt.ion()    
-    
+    fastf1.Cache.enable_cache("../cache")
+    plt.ion()
+
     # Qualify
     if "Q" in SessionName:
         race = fastf1.get_session(Year, EventName, "Q")
-        post_ig_dict['plot_track_with_annotated_corners'] = plot_track_with_annotated_corners(Year, EventName, SessionName, race, post_ig_params.get('plot_track_with_annotated_corners', False))
-        post_ig_dict['annotated_qualifying_flying_lap'] = annotated_qualifying_flying_lap(Year, EventName, SessionName, race, post_ig_params.get('annotated_qualifying_flying_lap', False))
-            
+        post_ig_dict["plot_track_with_annotated_corners"] = (
+            plot_track_with_annotated_corners(
+                Year,
+                EventName,
+                SessionName,
+                race,
+                post_ig_params.get("plot_track_with_annotated_corners", False),
+            )
+        )
+        post_ig_dict["annotated_qualifying_flying_lap"] = (
+            annotated_qualifying_flying_lap(
+                Year,
+                EventName,
+                SessionName,
+                race,
+                post_ig_params.get("annotated_qualifying_flying_lap", False),
+            )
+        )
+
     # Race
     if "R" in SessionName:
         race = fastf1.get_session(Year, EventName, "R")
-        post_ig_dict['driver_laptimes_distribution'] = driver_laptimes_distribution(Year, EventName, SessionName, race, post_ig_params.get('driver_laptimes_distribution', False))
-        post_ig_dict['team_pace_ranking'] = team_pace_ranking(Year, EventName, SessionName, race, post_ig_params.get('team_pace_ranking', False))
-        post_ig_dict['driver_laptimes_scatterplot'] = driver_laptimes_scatterplot(Year, EventName, SessionName, race, post_ig_params.get('driver_laptimes_scatterplot', False))
-        
+        post_ig_dict["driver_laptimes_distribution"] = driver_laptimes_distribution(
+            Year,
+            EventName,
+            SessionName,
+            race,
+            post_ig_params.get("driver_laptimes_distribution", False),
+        )
+        post_ig_dict["team_pace_ranking"] = team_pace_ranking(
+            Year,
+            EventName,
+            SessionName,
+            race,
+            post_ig_params.get("team_pace_ranking", False),
+        )
+        post_ig_dict["driver_laptimes_scatterplot"] = driver_laptimes_scatterplot(
+            Year,
+            EventName,
+            SessionName,
+            race,
+            post_ig_params.get("driver_laptimes_scatterplot", False),
+        )
+
     for key, value in post_ig_dict.items():
         print(f"{key}: {value}")
-    
+
     plt.ioff()
     plt.show(block=block)
     if not block:
-        plt.close('all')
-
+        plt.close("all")
 
 
 # @brief main: Plot F1 data analysis images
@@ -126,7 +157,7 @@ def plot_f1_data_analysis_images(block: bool) -> None:
 if __name__ == "__main__":
 
     # get_event_names(Year)
-    
+
     plot_f1_data_analysis_images(block)
 
     post_ig()

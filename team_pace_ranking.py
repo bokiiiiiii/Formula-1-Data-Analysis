@@ -6,7 +6,9 @@ import fastf1.plotting
 
 
 # @brief team_pace_ranking: Rank race pace of each team
-def team_pace_ranking(Year: int, EventName: str, SessionName: str, race, post: bool) -> dict:
+def team_pace_ranking(
+    Year: int, EventName: str, SessionName: str, race, post: bool
+) -> dict:
 
     race.load()
     laps = race.laps.pick_quicklaps()
@@ -56,21 +58,21 @@ def team_pace_ranking(Year: int, EventName: str, SessionName: str, race, post: b
 
     filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)
-    
+
     titles_str = (
         suptitle.replace(f"{Year} ", "")
         .replace(f"{EventName} ", "")
         .replace("Grand Prix ", "")
     )
- 
+
     caption = textwrap.dedent(
-    f"""\
+        f"""\
 🏎️
 « {Year} {EventName} Grand Prix »
 
 • {titles_str}
 
 #formula1 #{EventName.replace(" ", "")}"""
-)   
-    
+    )
+
     return {"filename": filename, "caption": caption, "post": post}

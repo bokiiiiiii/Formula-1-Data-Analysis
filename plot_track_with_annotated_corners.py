@@ -4,6 +4,7 @@ import fastf1, textwrap
 
 from auto_ig_post import auto_ig_post
 
+
 def rotate(xy, *, angle):
     rot_mat = np.array(
         [[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]
@@ -15,16 +16,16 @@ def rotate(xy, *, angle):
 def plot_track_with_annotated_corners(
     Year: int, EventName: str, SessionName: str, race, post: bool
 ) -> dict:
-    
+
     race.load()
 
     lap = race.laps.pick_fastest()
     pos = lap.get_pos_data()
 
     circuit_info = race.get_circuit_info()
-    
+
     print(circuit_info)
-    
+
     track = pos.loc[:, ("X", "Y")].to_numpy()
 
     track_angle = circuit_info.rotation / 180 * np.pi
@@ -60,16 +61,14 @@ def plot_track_with_annotated_corners(
             color="white",
         )
 
-    suptitle = (
-        f"{Year} {EventName} Grand Prix Circuit"
-    )
+    suptitle = f"{Year} {EventName} Grand Prix Circuit"
 
     plt.suptitle(
         suptitle,
         fontweight="bold",
         fontsize=16,
     )
-    
+
     ax.set_xlabel("X  Location (m)", fontweight="bold", fontsize=14)
     ax.set_ylabel("Y  Location (m)", fontweight="bold", fontsize=14)
 
@@ -111,32 +110,38 @@ def plot_track_with_annotated_corners(
         ha="center",
         fontsize=10,
     )
-    
+
     subtitle = "with Track Corners Annotated"
     bg_color = ax.get_facecolor()
-    plt.figtext(0.5, 0.935, subtitle, ha="center", fontsize=14,
-            bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor='none'))
-    
+    plt.figtext(
+        0.5,
+        0.935,
+        subtitle,
+        ha="center",
+        fontsize=14,
+        bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
+    )
+
     plt.tight_layout()
 
     filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
-    
+
     titles_str = (
         suptitle.replace(f"{Year} ", "")
         .replace(f"{EventName} ", "")
         .replace("Grand Prix ", "")
     )
-    
+
     plt.savefig(filename)
- 
+
     caption = textwrap.dedent(
-    f"""\
+        f"""\
 🏎️
 « {Year} {EventName} Grand Prix »
 
 • {titles_str}
 
 #formula1 #{EventName.replace(" ", "")}"""
-)   
-    
+    )
+
     return {"filename": filename, "caption": caption, "post": post}
