@@ -52,14 +52,15 @@ def organize_png_files_name() -> None:
     png_files = get_png_files(folder_path)
     titles = []
 
+    EventName_ = EventName.replace(" ", "_")
+    
     for png_file in png_files:
 
-        if f"{Year}" in png_file and f"{EventName.replace(" ", "_")}" in png_file:
+        if f"{Year}" in png_file and f"{EventName_}" in png_file:
             
-            EventName_ = f"{EventName.replace(" ", "_")}_"
             title = (
                 png_file.replace(f"{Year}_", "")
-                .replace(EventName_, "")
+                .replace(f"{EventName_}_", "")
                 .replace("Grand_Prix_", "")
                 .replace(".png", "")
                 .replace("_", " ")
