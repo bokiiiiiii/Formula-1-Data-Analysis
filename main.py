@@ -4,12 +4,13 @@ import os, textwrap, time
 import fastf1
 import fastf1.plotting
 
+from auto_ig_post import auto_ig_post
 from driver_laptimes_distribution import driver_laptimes_distribution
 from team_pace_ranking import team_pace_ranking
 from annotated_qualifying_flying_lap import annotated_qualifying_flying_lap
 from driver_laptimes_scatterplot import driver_laptimes_scatterplot
 from plot_track_with_annotated_corners import plot_track_with_annotated_corners
-from auto_ig_post import auto_ig_post
+from annotated_race_fatest_lap import annotated_race_fatest_lap
 
 
 Year: int = 2024
@@ -23,6 +24,7 @@ post_ig_params: dict = {
     "driver_laptimes_distribution": False,
     "team_pace_ranking": False,
     "driver_laptimes_scatterplot": False,
+    "annotated_race_fatest_lap": False,
 }
 post_ig_dict: dict = {}
 
@@ -73,7 +75,7 @@ def organize_png_files_name() -> None:
 
 • {titles_str}
 
-#formula1 #{EventName.replace(" ", "")}"""
+#F1 #Formula1 #{EventName.replace(" ", "")}GP"""
     )
 
     output_file_path = f"../Pic/{Year}_{EventName}_images.txt"
@@ -142,9 +144,20 @@ def plot_f1_data_analysis_images(block: bool) -> None:
             race,
             post_ig_params.get("driver_laptimes_scatterplot", False),
         )
+        post_ig_dict["annotated_race_fatest_lap"] = annotated_race_fatest_lap(
+            Year,
+            EventName,
+            SessionName,
+            race,
+            post_ig_params.get("annotated_race_fatest_lap", False),
+        )
 
-    for key, value in post_ig_dict.items():
-        print(f"{key}: {value}")
+    for keys, values in post_ig_dict.items():
+        # print(f"{keys}: {values}")
+        output_file_path = f"../Pic/{values['filename']}_ig.txt"
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            ig_caption = values["caption"]
+            f.write(f"{ig_caption}\n")
 
     plt.ioff()
     plt.show(block=block)
