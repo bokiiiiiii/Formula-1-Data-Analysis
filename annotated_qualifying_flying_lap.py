@@ -52,7 +52,7 @@ def annotated_qualifying_flying_lap(
         )
         lap_time_array.append(lap_time.total_seconds())
         lap_time_str_array.append(lap_time_str)
-        
+
         linestyle = "-" if i == 0 or not same_team else "--"
         ax.plot(
             car_data["Distance"],
@@ -71,11 +71,11 @@ def annotated_qualifying_flying_lap(
             0
         ]
         top_speeds[driver] = top_speed
-        
+
         if top_speed > top_speeds[drivers[0]]:
-            ypos = top_speed + 5*i
+            ypos = top_speed + 5 * i
         else:
-            ypos = top_speed - 5*i
+            ypos = top_speed - 5 * i
         ax.annotate(
             f"Top Speed: {top_speed:.1f} km/h",
             xy=(top_speed_distance, ypos),
@@ -91,10 +91,8 @@ def annotated_qualifying_flying_lap(
 
     speed_diff = abs(top_speeds[drivers[0]] - top_speeds[drivers[1]])
     laptime_diff = abs(lap_time_array[0] - lap_time_array[1])
-    laptime_diff_str = (
-            f"{laptime_diff % 60:.3f}"
-        )
-    
+    laptime_diff_str = f"{laptime_diff % 60:.3f}"
+
     circuit_info = race.get_circuit_info()
 
     ax.vlines(

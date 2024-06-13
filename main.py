@@ -150,16 +150,15 @@ def plot_f1_data_analysis_images(block: bool) -> None:
             SessionName,
             race,
             post_ig_params.get("annotated_race_fatest_lap", False),
-        )        
-              
+        )
 
     for keys, values in post_ig_dict.items():
         # print(f"{keys}: {values}")
         output_file_path = f"../Pic/{values['filename']}_ig.txt"
         with open(output_file_path, "w", encoding="utf-8") as f:
-            ig_caption = values['caption']
-            f.write(f"{ig_caption}\n")  
-                  
+            ig_caption = values["caption"]
+            f.write(f"{ig_caption}\n")
+
     plt.ioff()
     plt.show(block=block)
     if not block:
