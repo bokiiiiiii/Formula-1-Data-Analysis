@@ -6,15 +6,15 @@ import fastf1.plotting
 import fastf1.utils
 
 
-# @brief annotated_qualifying_flying_lap: Plot the speed of a qualifying flying lap and add annotations to mark corners
-def annotated_qualifying_flying_lap(
+# @brief annotated_race_fatest_lap: Plot the speed of a race fastest lap and add annotations to mark corners
+def annotated_race_fatest_lap(
     Year: int, EventName: str, SessionName: str, race, post: bool
 ) -> dict:
 
     race.load()
 
-    quali_results = race.results
-    front_row = quali_results[:2]
+    race_results = race.results
+    front_row = race_results[:2]
 
     fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
 
@@ -37,10 +37,9 @@ def annotated_qualifying_flying_lap(
     bg_color = ax.get_facecolor()
 
     for i, driver in enumerate(drivers):
-        _, _, q3lap = race.laps[
+        lap = race.laps[
             race.laps["Driver"] == driver
-        ].split_qualifying_sessions()
-        lap = q3lap.pick_fastest()
+        ].pick_fastest()
         compared_laps.append(lap)
         car_data = lap.get_car_data().add_distance()
         team_color = fastf1.plotting.team_color(lap["Team"])
@@ -52,7 +51,7 @@ def annotated_qualifying_flying_lap(
         )
         lap_time_array.append(lap_time.total_seconds())
         lap_time_str_array.append(lap_time_str)
-        
+            
         linestyle = "-" if i == 0 or not same_team else "--"
         ax.plot(
             car_data["Distance"],
@@ -71,7 +70,7 @@ def annotated_qualifying_flying_lap(
             0
         ]
         top_speeds[driver] = top_speed
-        
+
         if top_speed > top_speeds[drivers[0]]:
             ypos = top_speed + 5*i
         else:
@@ -143,7 +142,7 @@ def annotated_qualifying_flying_lap(
     twin_ylim = max(abs(delta_time.min()), abs(delta_time.max())) + 0.1
     twin.set_ylim([-twin_ylim, twin_ylim])
 
-    suptitle = f"{Year} {EventName} Grand Prix Front Row Qualifying Flying Lap"
+    suptitle = f"{Year} {EventName} Grand Prix Driver Race Fatest Lap"
 
     plt.suptitle(
         suptitle,

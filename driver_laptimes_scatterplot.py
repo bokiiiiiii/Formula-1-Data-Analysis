@@ -228,6 +228,6 @@ def driver_laptimes_scatterplot(
 \t◦ {drivers_abbr[1]}
 \t{' → '.join(slope_str_arrays[1])}
     
-#formula1 #{EventName.replace(" ", "")}"""
+#F1 #Formula1 #{EventName.replace(" ", "")}GP"""
 
     return {"filename": filename, "caption": caption, "post": post}

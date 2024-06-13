@@ -72,7 +72,7 @@ def team_pace_ranking(
 
 • {titles_str}
 
-#formula1 #{EventName.replace(" ", "")}"""
+#F1 #Formula1 #{EventName.replace(" ", "")}GP"""
     )
 
     return {"filename": filename, "caption": caption, "post": post}
