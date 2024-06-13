@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import fastf1
+import fastf1, textwrap
+
+from auto_ig_post import auto_ig_post
 
 
 def rotate(xy, *, angle):
@@ -12,8 +14,9 @@ def rotate(xy, *, angle):
 
 # @brief plot_track_with_annotated_corners: Plot the track map with annotated corners
 def plot_track_with_annotated_corners(
-    Year: int, EventName: str, SessionName: str, race
-):
+    Year: int, EventName: str, SessionName: str, race, post: bool
+) -> dict:
+
     race.load()
 
     lap = race.laps.pick_fastest()
@@ -21,13 +24,15 @@ def plot_track_with_annotated_corners(
 
     circuit_info = race.get_circuit_info()
 
+    print(circuit_info)
+
     track = pos.loc[:, ("X", "Y")].to_numpy()
 
     track_angle = circuit_info.rotation / 180 * np.pi
 
     rotated_track = rotate(track, angle=track_angle)
 
-    fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
+    fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100, linewidth=0)
 
     plt.plot(rotated_track[:, 0], rotated_track[:, 1], label="Track")
 
@@ -57,7 +62,12 @@ def plot_track_with_annotated_corners(
         )
 
     suptitle = f"{Year} {EventName} Grand Prix Circuit"
-    plt.title(suptitle, fontweight="bold", fontsize=16)
+
+    plt.suptitle(
+        suptitle,
+        fontweight="bold",
+        fontsize=16,
+    )
 
     ax.set_xlabel("X  Location (m)", fontweight="bold", fontsize=14)
     ax.set_ylabel("Y  Location (m)", fontweight="bold", fontsize=14)
@@ -101,7 +111,37 @@ def plot_track_with_annotated_corners(
         fontsize=10,
     )
 
+    subtitle = "with Track Corners Annotated"
+    bg_color = ax.get_facecolor()
+    plt.figtext(
+        0.5,
+        0.935,
+        subtitle,
+        ha="center",
+        fontsize=14,
+        bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
+    )
+
     plt.tight_layout()
 
     filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
+
+    titles_str = (
+        suptitle.replace(f"{Year} ", "")
+        .replace(f"{EventName} ", "")
+        .replace("Grand Prix ", "")
+    )
+
     plt.savefig(filename)
+
+    caption = textwrap.dedent(
+        f"""\
+🏎️
+« {Year} {EventName} Grand Prix »
+
+• {titles_str}
+
+#formula1 #{EventName.replace(" ", "")}"""
+    )
+
+    return {"filename": filename, "caption": caption, "post": post}

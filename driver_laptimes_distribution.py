@@ -1,12 +1,14 @@
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-import fastf1
+import fastf1, textwrap
 import fastf1.plotting
 
 
 # @brief driver_laptimes_distribution: Visualizae laptime distributions of different drivers
-def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, race):
+def driver_laptimes_distribution(
+    Year: int, EventName: str, SessionName: str, race, post: bool
+) -> dict:
 
     race.load()
 
@@ -67,3 +69,21 @@ def driver_laptimes_distribution(Year: int, EventName: str, SessionName: str, ra
 
     filename = "../pic/" + suptitle.replace(" ", "_") + ".png"
     plt.savefig(filename)
+
+    titles_str = (
+        suptitle.replace(f"{Year} ", "")
+        .replace(f"{EventName} ", "")
+        .replace("Grand Prix ", "")
+    )
+
+    caption = textwrap.dedent(
+        f"""\
+🏎️
+« {Year} {EventName} Grand Prix »
+
+• {titles_str}
+
+#formula1 #{EventName.replace(" ", "")}"""
+    )
+
+    return {"filename": filename, "caption": caption, "post": post}
