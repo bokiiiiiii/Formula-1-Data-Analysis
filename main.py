@@ -157,7 +157,8 @@ def plot_f1_data_analysis_images(block: bool) -> None:
         # print(f"{keys}: {values}")
         output_file_path = f"../Pic/{values['filename']}_ig.txt"
         with open(output_file_path, "w", encoding="utf-8") as f:
-            f.write(f'{values['caption']}\n')  
+            ig_caption = values['caption']
+            f.write(f"{ig_caption}\n")  
                   
     plt.ioff()
     plt.show(block=block)
