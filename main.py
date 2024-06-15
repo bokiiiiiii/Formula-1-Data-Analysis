@@ -15,7 +15,7 @@ from annotated_race_fatest_lap import annotated_race_fatest_lap
 
 Year: int = 2024
 EventName: str = "Canadian"
-SessionName: str = "Q+R"
+SessionName: str = "R"
 folder_path: str = "../Pic"
 block: bool = True
 post_ig_params: dict = {
