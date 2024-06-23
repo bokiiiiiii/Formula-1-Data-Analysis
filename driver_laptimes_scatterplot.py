@@ -7,7 +7,7 @@ import fastf1
 import fastf1.plotting
 
 
-QUICKLAP_THRESHOLD = 1.25
+QUICKLAP_THRESHOLD = 1.07
 
 
 # @brief driver_laptimes_scatterplot: Plot driver lap times variation with pit lap annotations

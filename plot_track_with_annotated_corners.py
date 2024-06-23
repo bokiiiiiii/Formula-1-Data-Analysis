@@ -3,6 +3,7 @@ import numpy as np
 import fastf1, textwrap
 
 from auto_ig_post import auto_ig_post
+from fastf1.ergast import Ergast
 
 
 def rotate(xy, *, angle):
@@ -18,7 +19,16 @@ def plot_track_with_annotated_corners(
 ) -> dict:
 
     race.load()
-
+    ergast = Ergast()
+    response_frame = ergast.get_circuits(season=Year)
+    # print(response_frame)
+    
+    circuitsinfo = ergast.get_circuits(season=Year, result_type='raw')[4] # Adjust
+    circuitName = circuitsinfo['circuitName']
+    Location = circuitsinfo['Location']
+    locality = Location['locality']
+    country = Location['country']
+    
     lap = race.laps.pick_fastest()
     pos = lap.get_pos_data()
 
@@ -139,7 +149,9 @@ def plot_track_with_annotated_corners(
 🏎️
 « {Year} {EventName} Grand Prix »
 
-• {titles_str}
+• Circuit: {circuitName}
+• Country: {country}
+• Locality: {locality}
 
 #F1 #Formula1 #{EventName.replace(" ", "")}GP"""
     )

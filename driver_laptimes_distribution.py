@@ -7,7 +7,7 @@ from scipy.interpolate import make_interp_spline
 import fastf1
 import fastf1.plotting
 
-QUICKLAP_THRESHOLD = 1.25
+QUICKLAP_THRESHOLD = 1.07
 BANDWIDTH = 0.17
 
 
@@ -65,6 +65,23 @@ def driver_laptimes_distribution(
         linewidth=0,
         size=4.5,
     )
+    
+    ax.legend(title="Compound", loc="upper right")
+    
+    # sns.boxplot(
+    #     data=driver_laps,
+    #     x="Driver",
+    #     y="LapTime(s)",
+    #     hue="Driver",
+    #     order=finishing_order,
+    #     palette=driver_colors,
+    #     whiskerprops=dict(color="None"),
+    #     boxprops=dict(edgecolor="None", alpha=0.5),
+    #     medianprops=dict(color="None"),
+    #     capprops=dict(color="None"),
+    #     linewidth=1,
+    #     width=0.24,
+    # )
 
     twin = ax.twinx()
     twin.spines["right"].set_color("gray")
@@ -153,12 +170,13 @@ def driver_laptimes_distribution(
             lw=1.4,
             label="Median" if driver == finishing_order[0] else "",
         )
-
+      
     ax.set_xlabel("Driver", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
+    
 
     xnew = np.linspace(xpos_array[0], xpos_array[-1], 300)
-    spl = make_interp_spline(xpos_array, mean_laptime_array, k=3)  # B-spline degree 3
+    spl = make_interp_spline(xpos_array, mean_laptime_array, k=1)  # B-spline degree
     mean_smooth = spl(xnew)
     twin.plot(xnew, mean_smooth, "--", color="gray")
     twin.plot(

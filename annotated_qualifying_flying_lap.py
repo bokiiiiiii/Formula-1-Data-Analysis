@@ -185,10 +185,10 @@ def annotated_qualifying_flying_lap(
 
 ‣ Top Speed
 \t◦ {drivers_abbr[0]}
-\t{top_speeds[drivers[0]]:.1f}  (km/h)
+\t{top_speeds[drivers[0]]:.1f} (km/h)
 \t◦ {drivers_abbr[1]}
-\t{top_speeds[drivers[1]]:.1f}  (km/h)
-‣‣ Top Speed Gap: {speed_diff:.1f}  (km/h)
+\t{top_speeds[drivers[1]]:.1f} (km/h)
+‣‣ Top Speed Gap: {speed_diff:.1f} (km/h)
 
 ‣ Lap Time
 \t◦ {drivers_abbr[0]}
