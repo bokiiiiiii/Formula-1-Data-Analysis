@@ -22,13 +22,13 @@ def plot_track_with_annotated_corners(
     ergast = Ergast()
     response_frame = ergast.get_circuits(season=Year)
     # print(response_frame)
-    
-    circuitsinfo = ergast.get_circuits(season=Year, result_type='raw')[4] # Adjust
-    circuitName = circuitsinfo['circuitName']
-    Location = circuitsinfo['Location']
-    locality = Location['locality']
-    country = Location['country']
-    
+
+    circuitsinfo = ergast.get_circuits(season=Year, result_type="raw")[4]  # Adjust
+    circuitName = circuitsinfo["circuitName"]
+    Location = circuitsinfo["Location"]
+    locality = Location["locality"]
+    country = Location["country"]
+
     lap = race.laps.pick_fastest()
     pos = lap.get_pos_data()
 

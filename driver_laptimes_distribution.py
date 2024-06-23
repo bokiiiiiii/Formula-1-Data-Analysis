@@ -65,9 +65,9 @@ def driver_laptimes_distribution(
         linewidth=0,
         size=4.5,
     )
-    
+
     ax.legend(title="Compound", loc="upper right")
-    
+
     # sns.boxplot(
     #     data=driver_laps,
     #     x="Driver",
@@ -170,10 +170,9 @@ def driver_laptimes_distribution(
             lw=1.4,
             label="Median" if driver == finishing_order[0] else "",
         )
-      
+
     ax.set_xlabel("Driver", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
-    
 
     xnew = np.linspace(xpos_array[0], xpos_array[-1], 300)
     spl = make_interp_spline(xpos_array, mean_laptime_array, k=1)  # B-spline degree
