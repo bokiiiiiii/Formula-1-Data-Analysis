@@ -47,9 +47,7 @@ def annotated_qualifying_flying_lap(
         team_colors.append(team_color)
 
         lap_time = lap["LapTime"]
-        lap_time_str = (
-            f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:.3f}"
-        )
+        lap_time_str = f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:06.3f}"
         lap_time_array.append(lap_time.total_seconds())
         lap_time_str_array.append(lap_time_str)
 
@@ -185,10 +183,10 @@ def annotated_qualifying_flying_lap(
 
 ‣ Top Speed
 \t◦ {drivers_abbr[0]}
-\t{top_speeds[drivers[0]]:.1f}  (km/h)
+\t{top_speeds[drivers[0]]:.1f} (km/h)
 \t◦ {drivers_abbr[1]}
-\t{top_speeds[drivers[1]]:.1f}  (km/h)
-‣‣ Top Speed Gap: {speed_diff:.1f}  (km/h)
+\t{top_speeds[drivers[1]]:.1f} (km/h)
+‣‣ Top Speed Gap: {speed_diff:.1f} (km/h)
 
 ‣ Lap Time
 \t◦ {drivers_abbr[0]}

@@ -3,6 +3,40 @@ import numpy as np
 import fastf1, textwrap
 
 from auto_ig_post import auto_ig_post
+from fastf1.ergast import Ergast
+
+all_country_name = {
+    "Bahrain": "Bahrain",
+    "Saudi Arabian": "Saudi Arabia",
+    "Australian": "Australia",
+    "Japanese": "Japan",
+    "Chinese": "China",
+    "Miami": "USA",
+    "Emilia Romagna": "",
+    "Monaco": "Monaco",
+    "Canadian": "Canada",
+    "Spanish": "Spain",
+    "Austrian": "Austria",
+    "British": "UK",
+    "Hungarian": "Hungary",
+    "Belgian": "Belgium",
+    "Dutch": "",
+    "Italian": "Italy",
+    "Azerbaijan": "Azerbaijan",
+    "Singapore": "Singapore",
+    "United States": "United States",
+    "Mexico City": "Mexico",
+    "São Paulo": "",
+    "Las Vegas": "USA",
+    "Qatar": "Qatar",
+    "Abu Dhabi": "",
+}
+
+
+def find_circuit_index_by_country(country_name, allcircuitsinfo):
+    for index, circuit in enumerate(allcircuitsinfo):
+        if circuit["Location"]["country"] == country_name:
+            return index
 
 
 def rotate(xy, *, angle):
@@ -18,6 +52,25 @@ def plot_track_with_annotated_corners(
 ) -> dict:
 
     race.load()
+    ergast = Ergast()
+
+    allcircuitsinfo = ergast.get_circuits(season=Year, result_type="raw")
+    country_name = all_country_name[EventName]
+    index = find_circuit_index_by_country(country_name, allcircuitsinfo)
+    print(index)
+    print(type(index))
+    if not index:
+        circuitName = ""
+        Location = ""
+        locality = ""
+        country = ""
+        print("Country not found.")
+    else:
+        circuitsinfo = ergast.get_circuits(season=Year, result_type="raw")[index]
+        circuitName = circuitsinfo["circuitName"]
+        Location = circuitsinfo["Location"]
+        locality = Location["locality"]
+        country = Location["country"]
 
     lap = race.laps.pick_fastest()
     pos = lap.get_pos_data()
@@ -139,7 +192,9 @@ def plot_track_with_annotated_corners(
 🏎️
 « {Year} {EventName} Grand Prix »
 
-• {titles_str}
+• Circuit: {circuitName}
+• Country: {country}
+• Locality: {locality}
 
 #F1 #Formula1 #{EventName.replace(" ", "")}GP"""
     )

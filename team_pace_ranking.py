@@ -36,10 +36,11 @@ def team_pace_ranking(
         order=team_order,
         palette=team_palette,
         whiskerprops=dict(color="white"),
-        boxprops=dict(edgecolor="white"),
+        boxprops=dict(edgecolor="grey", alpha=0.7),
         medianprops=dict(color="white"),
         capprops=dict(color="white"),
-        linewidth=1.7,
+        linewidth=1,
+        width=0.5,
     )
 
     ax.set_xlabel("Team", fontweight="bold", fontsize=14)
