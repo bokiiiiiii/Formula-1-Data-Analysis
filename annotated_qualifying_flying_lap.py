@@ -47,9 +47,7 @@ def annotated_qualifying_flying_lap(
         team_colors.append(team_color)
 
         lap_time = lap["LapTime"]
-        lap_time_str = (
-            f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:06.3f}"
-        )
+        lap_time_str = f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:06.3f}"
         lap_time_array.append(lap_time.total_seconds())
         lap_time_str_array.append(lap_time_str)
 

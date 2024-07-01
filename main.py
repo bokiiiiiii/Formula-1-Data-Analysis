@@ -8,7 +8,9 @@ from auto_ig_post import auto_ig_post
 from driver_laptimes_distribution import driver_laptimes_distribution
 from team_pace_ranking import team_pace_ranking
 from annotated_qualifying_flying_lap import annotated_qualifying_flying_lap
-from annotated_sprint_qualifying_flying_lap import annotated_sprint_qualifying_flying_lap
+from annotated_sprint_qualifying_flying_lap import (
+    annotated_sprint_qualifying_flying_lap,
+)
 from driver_laptimes_scatterplot import driver_laptimes_scatterplot
 from plot_track_with_annotated_corners import plot_track_with_annotated_corners
 from annotated_race_fatest_lap import annotated_race_fatest_lap
@@ -97,11 +99,11 @@ def post_ig() -> None:
         if value["post"]:
             auto_ig_post(value["filename"], value["caption"])
             time.sleep(60)
-            
+
 
 # @brief plot_image_and_post_ig: Plot images and post on instagram
 # @param key: [in] function name
-# @param race: [in] race session       
+# @param race: [in] race session
 def plot_image_and_post_ig(key, race):
     post_ig_dict[key] = globals()[key](
         Year,
@@ -110,7 +112,7 @@ def plot_image_and_post_ig(key, race):
         race,
         post_ig_params.get(key, False),
     )
-                
+
 
 # @brief plot_f1_data_analysis_images: Plot F1 data analysis images
 # @param block: [in] plt.show block or not
@@ -123,7 +125,7 @@ def plot_f1_data_analysis_images(block: bool) -> None:
     if "FP1" in SessionName:
         race = fastf1.get_session(Year, EventName, "FP1")
         plot_image_and_post_ig("plot_track_with_annotated_corners", race)
-                
+
     # Qualify
     if "Q" in SessionName:
         race = fastf1.get_session(Year, EventName, "Q")
@@ -133,17 +135,16 @@ def plot_f1_data_analysis_images(block: bool) -> None:
     if "R" in SessionName:
         race = fastf1.get_session(Year, EventName, "R")
         plot_image_and_post_ig("driver_laptimes_distribution", race)
-        plot_image_and_post_ig("team_pace_ranking", race) 
-        plot_image_and_post_ig("driver_laptimes_scatterplot", race) 
-        plot_image_and_post_ig("annotated_race_fatest_lap", race) 
+        plot_image_and_post_ig("team_pace_ranking", race)
+        plot_image_and_post_ig("driver_laptimes_scatterplot", race)
+        plot_image_and_post_ig("annotated_race_fatest_lap", race)
         plot_image_and_post_ig("race_fatest_lap_telemetry_data", race)
-    
+
     # Sprint Qualify
     if "SQ" in SessionName:
         race = fastf1.get_session(Year, EventName, "SQ")
-        plot_image_and_post_ig("annotated_sprint_qualifying_flying_lap", race)         
-        
-        
+        plot_image_and_post_ig("annotated_sprint_qualifying_flying_lap", race)
+
     for keys, values in post_ig_dict.items():
         # print(f"{keys}: {values}")
         output_file_path = f"../Pic/{values['filename']}_ig.txt"
