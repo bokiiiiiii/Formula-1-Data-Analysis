@@ -18,7 +18,9 @@ def driver_laptimes_distribution(
 
     race.load()
 
-    point_finishers = race.drivers[:10]
+    # point_finishers = race.drivers[:10]
+    point_finishers = race.results[:10]
+    point_finishers = point_finishers["DriverNumber"]
     driver_laps = race.laps.pick_drivers(point_finishers).pick_quicklaps(
         QUICKLAP_THRESHOLD
     )
@@ -176,7 +178,7 @@ def driver_laptimes_distribution(
     
 
     xnew = np.linspace(xpos_array[0], xpos_array[-1], 300)
-    spl = make_interp_spline(xpos_array, mean_laptime_array, k=1)  # B-spline degree
+    spl = make_interp_spline(xpos_array, mean_laptime_array, k=2)  # B-spline degree
     mean_smooth = spl(xnew)
     twin.plot(xnew, mean_smooth, "--", color="gray")
     twin.plot(

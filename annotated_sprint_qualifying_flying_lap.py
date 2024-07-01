@@ -6,15 +6,15 @@ import fastf1.plotting
 import fastf1.utils
 
 
-# @brief annotated_race_fatest_lap: Plot the speed of a race fastest lap and add annotations to mark corners
-def annotated_race_fatest_lap(
+# @brief annotated_sprint_qualifying_flying_lap: Plot the speed of a sprint qualifying flying lap and add annotations to mark corners
+def annotated_sprint_qualifying_flying_lap(
     Year: int, EventName: str, SessionName: str, race, post: bool
 ) -> dict:
 
     race.load()
 
-    race_results = race.results
-    front_row = race_results[:2]
+    quali_results = race.results
+    front_row = quali_results[:2]
 
     fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
 
@@ -37,7 +37,10 @@ def annotated_race_fatest_lap(
     bg_color = ax.get_facecolor()
 
     for i, driver in enumerate(drivers):
-        lap = race.laps[race.laps["Driver"] == driver].pick_fastest()
+        _, _, q3lap = race.laps[
+            race.laps["Driver"] == driver
+        ].split_qualifying_sessions()
+        lap = q3lap.pick_fastest()
         compared_laps.append(lap)
         car_data = lap.get_car_data().add_distance()
         team_color = fastf1.plotting.team_color(lap["Team"])
@@ -138,7 +141,7 @@ def annotated_race_fatest_lap(
     twin_ylim = max(abs(delta_time.min()), abs(delta_time.max())) + 0.1
     twin.set_ylim([-twin_ylim, twin_ylim])
 
-    suptitle = f"{Year} {EventName} Grand Prix Driver Race Fatest Lap"
+    suptitle = f"{Year} {EventName} Grand Prix Front Row Sprint Qualifying Flying Lap"
 
     plt.suptitle(
         suptitle,

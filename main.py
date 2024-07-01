@@ -8,6 +8,7 @@ from auto_ig_post import auto_ig_post
 from driver_laptimes_distribution import driver_laptimes_distribution
 from team_pace_ranking import team_pace_ranking
 from annotated_qualifying_flying_lap import annotated_qualifying_flying_lap
+from annotated_sprint_qualifying_flying_lap import annotated_sprint_qualifying_flying_lap
 from driver_laptimes_scatterplot import driver_laptimes_scatterplot
 from plot_track_with_annotated_corners import plot_track_with_annotated_corners
 from annotated_race_fatest_lap import annotated_race_fatest_lap
@@ -15,22 +16,24 @@ from race_fatest_lap_telemetry_data import race_fatest_lap_telemetry_data
 
 
 Year: int = 2024
-EventName: str = "Spanish"
+EventName: str = "Austrian"
 SessionName: str = "R"
 folder_path: str = "../Pic"
-block: bool = True
 post_ig_params: dict = {
     # FP1
     "plot_track_with_annotated_corners": False,
     # Q
     "annotated_qualifying_flying_lap": False,
     # R
-    "driver_laptimes_distribution": False,
+    "driver_laptimes_distribution": True,
     "team_pace_ranking": False,
-    "driver_laptimes_scatterplot": False,
-    "annotated_race_fatest_lap": False,
+    "driver_laptimes_scatterplot": True,
+    "annotated_race_fatest_lap": True,
     "race_fatest_lap_telemetry_data": False,
+    # SQ
+    "annotated_sprint_qualifying_flying_lap": False,
 }
+block: bool = all(not value for value in post_ig_params.values())
 post_ig_dict: dict = {}
 
 
@@ -116,7 +119,7 @@ def plot_f1_data_analysis_images(block: bool) -> None:
     fastf1.Cache.enable_cache("../cache")
     plt.ion()
 
-    # Qualify
+    # Free Practice
     if "FP1" in SessionName:
         race = fastf1.get_session(Year, EventName, "FP1")
         plot_image_and_post_ig("plot_track_with_annotated_corners", race)
@@ -124,17 +127,22 @@ def plot_f1_data_analysis_images(block: bool) -> None:
     # Qualify
     if "Q" in SessionName:
         race = fastf1.get_session(Year, EventName, "Q")
-        # plot_image_and_post_ig("plot_track_with_annotated_corners", race)
         plot_image_and_post_ig("annotated_qualifying_flying_lap", race)
 
     # Race
     if "R" in SessionName:
         race = fastf1.get_session(Year, EventName, "R")
         plot_image_and_post_ig("driver_laptimes_distribution", race)
-        # plot_image_and_post_ig("team_pace_ranking", race) 
+        plot_image_and_post_ig("team_pace_ranking", race) 
         plot_image_and_post_ig("driver_laptimes_scatterplot", race) 
         plot_image_and_post_ig("annotated_race_fatest_lap", race) 
-        plot_image_and_post_ig("race_fatest_lap_telemetry_data", race)     
+        plot_image_and_post_ig("race_fatest_lap_telemetry_data", race)
+    
+    # Sprint Qualify
+    if "SQ" in SessionName:
+        race = fastf1.get_session(Year, EventName, "SQ")
+        plot_image_and_post_ig("annotated_sprint_qualifying_flying_lap", race)         
+        
         
     for keys, values in post_ig_dict.items():
         # print(f"{keys}: {values}")
@@ -153,7 +161,7 @@ def plot_f1_data_analysis_images(block: bool) -> None:
 # @ref: https://github.com/theOehrly/Fast-F1
 if __name__ == "__main__":
 
-    # get_event_names(Year)
+    get_event_names(Year)
 
     plot_f1_data_analysis_images(block)
 
