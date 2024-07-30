@@ -1,68 +1,62 @@
+import os
+import textwrap
+import time
 from matplotlib import pyplot as plt
-import os, textwrap, time
-
 import fastf1
 import fastf1.plotting
 
 from auto_ig_post import auto_ig_post
 from plot_functions import *
 
+# Parameters
+YEAR = 2024
+EVENT_NAME = "Belgian"
+SESSION_NAME = "R"
 
-Year: int = 2024
-EventName: str = "Hungarian"
-SessionName: str = "R"
-post_ig_params: dict = {
-    # FP1
-    "plot_track_with_annotated_corners": False,
-    # Q
-    "annotated_qualifying_flying_lap": False,
-    # R
-    "driver_laptimes_distribution": False,
-    "team_pace_ranking": False,  # Not Done
-    "driver_laptimes_scatterplot": False,
-    "annotated_race_fatest_lap": False,
-    "race_fatest_lap_telemetry_data": False,  # Not Done
-    # SQ
-    "annotated_sprint_qualifying_flying_lap": False,
+FUNC_PARAMS = {
+    # Free Practice
+    "plot_track_with_annotated_corners": {"enabled": False, "session": "FP1"},
+    # Qualify
+    "annotated_qualifying_flying_lap": {"enabled": False, "session": "Q"},
+    # Race
+    "driver_laptimes_distribution": {"enabled": False, "session": "R"},
+    "team_pace_ranking": {"enabled": False, "session": "R"},
+    "driver_laptimes_scatterplot": {"enabled": False, "session": "R"},
+    "annotated_race_fatest_lap": {"enabled": False, "session": "R"},
+    "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"},
+    # Sprint Qualify
+    "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }
 
-folder_path: str = "../Pic"
-block: bool = all(not value for value in post_ig_params.values())
-post_ig_dict: dict = {}
+FOLDER_PATH = "../Pic"
+BLOCK = all(not value["enabled"] for value in FUNC_PARAMS.values())
+POST_IG_DICT = {}
 
 
-# @brief get_event_names: Get event names in specific year
-# @param year: [in] year
 def get_event_names(year: int) -> None:
+    """Get event names in a specific year."""
     event_names = fastf1.get_event_schedule(year)["EventName"]
     print(event_names)
 
 
-# @brief get_png_files: Get png files in the folder
-# @param floder_path: [in] folder path
-# @return: png files
-def get_png_files(folder_path):
-
+def get_png_files(folder_path: str) -> list:
+    """Get png files in the folder."""
     files = os.listdir(folder_path)
-    png_files = [file for file in files if file.endswith(".png")]
-
-    return png_files
+    return [file for file in files if file.endswith(".png")]
 
 
-# @brief organize_png_files_name: Organize all png file names generated in this event
 def organize_png_files_name() -> None:
-    png_files = get_png_files(folder_path)
+    """Organize all png file names generated in this event."""
+    png_files = get_png_files(FOLDER_PATH)
     titles = []
 
-    EventName_ = EventName.replace(" ", "_")
+    event_name_formatted = EVENT_NAME.replace(" ", "_")
 
     for png_file in png_files:
-
-        if f"{Year}" in png_file and f"{EventName_}" in png_file:
-
+        if f"{YEAR}" in png_file and f"{event_name_formatted}" in png_file:
             title = (
-                png_file.replace(f"{Year}_", "")
-                .replace(f"{EventName_}_", "")
+                png_file.replace(f"{YEAR}_", "")
+                .replace(f"{event_name_formatted}_", "")
                 .replace("Grand_Prix_", "")
                 .replace(".png", "")
                 .replace("_", " ")
@@ -72,92 +66,66 @@ def organize_png_files_name() -> None:
     titles_str = "\n• ".join(titles)
     caption = textwrap.dedent(
         f"""\
-🏎️
-« {Year} {EventName} Grand Prix »
+        🏎️
+        « {YEAR} {EVENT_NAME} Grand Prix »
 
-• {titles_str}
+        • {titles_str}
 
-#F1 #Formula1 #{EventName.replace(" ", "")}GP"""
+        #F1 #Formula1 #{EVENT_NAME.replace(" ", "")}GP"""
     )
 
-    output_file_path = f"../Pic/{Year}_{EventName}_images.txt"
+    output_file_path = f"{FOLDER_PATH}/{YEAR}_{EVENT_NAME}_images.txt"
     with open(output_file_path, "w", encoding="utf-8") as f:
         f.write(caption)
 
 
-# @brief post_ig: Post images on instagram
 def post_ig() -> None:
-    for key, value in post_ig_dict.items():
+    """Post images on Instagram."""
+    for key, value in POST_IG_DICT.items():
         if value["post"]:
             auto_ig_post(value["filename"], value["caption"])
             time.sleep(60)
 
 
-# @brief plot_image_and_post_ig: Plot images and post on instagram
-# @param key: [in] function name
-# @param race: [in] race session
-def plot_image_and_post_ig(key, race):
-    post_ig_dict[key] = globals()[key](
-        Year,
-        EventName,
-        SessionName,
+def plot_image_and_post_ig(key: str, race) -> None:
+    """Plot images and post on Instagram."""
+    POST_IG_DICT[key] = globals()[key](
+        YEAR,
+        EVENT_NAME,
+        SESSION_NAME,
         race,
-        post_ig_params.get(key, False),
+        FUNC_PARAMS[key]["enabled"],
     )
 
 
-# @brief plot_f1_data_analysis_images: Plot F1 data analysis images
-# @param block: [in] plt.show block or not
 def plot_f1_data_analysis_images(block: bool) -> None:
+    """Plot F1 data analysis images."""
     fastf1.plotting.setup_mpl(mpl_timedelta_support=False, misc_mpl_mods=False)
     fastf1.Cache.enable_cache("../cache")
     plt.ion()
 
-    # Free Practice
-    if "FP1" in SessionName:
-        race = fastf1.get_session(Year, EventName, "FP1")
-        plot_image_and_post_ig("plot_track_with_annotated_corners", race)
+    for key, params in FUNC_PARAMS.items():
+        if params["session"] in SESSION_NAME:
+            race = fastf1.get_session(YEAR, EVENT_NAME, params["session"])
+            plot_image_and_post_ig(key, race)
 
-    # Qualify
-    if "Q" in SessionName:
-        race = fastf1.get_session(Year, EventName, "Q")
-        plot_image_and_post_ig("annotated_qualifying_flying_lap", race)
-
-    # Race
-    if "R" in SessionName:
-        race = fastf1.get_session(Year, EventName, "R")
-        plot_image_and_post_ig("driver_laptimes_distribution", race)
-        plot_image_and_post_ig("team_pace_ranking", race)
-        plot_image_and_post_ig("driver_laptimes_scatterplot", race)
-        plot_image_and_post_ig("annotated_race_fatest_lap", race)
-        plot_image_and_post_ig("race_fatest_lap_telemetry_data", race)
-
-    # Sprint Qualify
-    if "SQ" in SessionName:
-        race = fastf1.get_session(Year, EventName, "SQ")
-        plot_image_and_post_ig("annotated_sprint_qualifying_flying_lap", race)
-
-    for keys, values in post_ig_dict.items():
-        # print(f"{keys}: {values}")
-        output_file_path = f"../Pic/{values['filename']}_ig.txt"
-        with open(output_file_path, "w", encoding="utf-8") as f:
-            ig_caption = values["caption"]
-            f.write(f"{ig_caption}\n")
-
+    save_captions_to_file()
     plt.ioff()
     plt.show(block=block)
     if not block:
         plt.close("all")
 
 
-# @brief main: Plot F1 data analysis images
-# @ref: https://github.com/theOehrly/Fast-F1
+def save_captions_to_file() -> None:
+    """Save Instagram captions to file."""
+    for key, value in POST_IG_DICT.items():
+        output_file_path = f"{FOLDER_PATH}/{value['filename']}_ig.txt"
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            f.write(f"{value['caption']}\n")
+
+
 if __name__ == "__main__":
-
-    get_event_names(Year)
-
-    plot_f1_data_analysis_images(block)
-
+    get_event_names(YEAR)
+    plot_f1_data_analysis_images(BLOCK)
     post_ig()
-
     organize_png_files_name()

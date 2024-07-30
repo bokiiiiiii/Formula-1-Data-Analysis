@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 import fastf1
 import fastf1.plotting
 
-# Constants
+# Parameters
 QUICKLAP_THRESHOLD = 1.05
 MARKERS = [".", "*"]
 LINES = ["--", ":"]

@@ -10,7 +10,7 @@ import fastf1.plotting
 # Parameters
 QUICKLAP_THRESHOLD = 1.05
 BANDWIDTH = 0.17
-B_SPLINE_DEG = 1
+B_SPLINE_DEG = 2
 
 
 def load_race_data(race):
