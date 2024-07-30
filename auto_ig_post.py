@@ -47,9 +47,10 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         page.get_by_role("paragraph").click()
         page.get_by_label("撰寫說明文字……").fill(caption)
         time.sleep(10)
-
+        
         page.get_by_role("button", name="分享").click()
-
+        time.sleep(10)
+        
         context.close()
         browser.close()
 
