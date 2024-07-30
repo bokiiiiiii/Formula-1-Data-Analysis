@@ -17,11 +17,11 @@ post_ig_params: dict = {
     # Q
     "annotated_qualifying_flying_lap": False,
     # R
-    "driver_laptimes_distribution": False, 
-    "team_pace_ranking": False, # Not Done
+    "driver_laptimes_distribution": False,
+    "team_pace_ranking": False,  # Not Done
     "driver_laptimes_scatterplot": False,
     "annotated_race_fatest_lap": False,
-    "race_fatest_lap_telemetry_data": False, # Not Done
+    "race_fatest_lap_telemetry_data": False,  # Not Done
     # SQ
     "annotated_sprint_qualifying_flying_lap": False,
 }

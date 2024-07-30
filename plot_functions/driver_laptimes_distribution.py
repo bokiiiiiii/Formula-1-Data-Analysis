@@ -12,6 +12,7 @@ QUICKLAP_THRESHOLD = 1.05
 BANDWIDTH = 0.17
 B_SPLINE_DEG = 1
 
+
 def load_race_data(race):
     """Load race data."""
     try:
@@ -19,25 +20,34 @@ def load_race_data(race):
     except Exception as e:
         raise RuntimeError(f"Error loading race data: {e}")
 
+
 def get_point_finishers(race):
     """Get the top 10 finishers."""
     return race.results[:10]["DriverNumber"]
+
 
 def get_driver_laps(race, point_finishers):
     """Get the laps for the point finishers."""
     return race.laps.pick_drivers(point_finishers).pick_quicklaps(QUICKLAP_THRESHOLD)
 
+
 def get_driver_statistics(race, point_finishers):
     """Get the lap statistics for the point finishers."""
     return race.laps.pick_drivers(point_finishers)
+
 
 def get_finishing_order(race, point_finishers):
     """Get the finishing order of drivers."""
     return [race.get_driver(i)["Abbreviation"] for i in point_finishers]
 
+
 def get_driver_colors():
     """Get the driver colors."""
-    return {abv: fastf1.plotting.DRIVER_COLORS[driver] for abv, driver in fastf1.plotting.DRIVER_TRANSLATE.items()}
+    return {
+        abv: fastf1.plotting.DRIVER_COLORS[driver]
+        for abv, driver in fastf1.plotting.DRIVER_TRANSLATE.items()
+    }
+
 
 def plot_lap_time_distributions(driver_laps, finishing_order, driver_colors):
     """Plot the lap time distributions."""
@@ -53,9 +63,10 @@ def plot_lap_time_distributions(driver_laps, finishing_order, driver_colors):
         order=finishing_order,
         palette=driver_colors,
         alpha=0.5,
-        ax=ax
+        ax=ax,
     )
     return fig, ax
+
 
 def plot_actual_laptimes(driver_laps, finishing_order):
     """Plot the actual lap times."""
@@ -68,10 +79,13 @@ def plot_actual_laptimes(driver_laps, finishing_order):
         palette=fastf1.plotting.COMPOUND_COLORS,
         hue_order=["SOFT", "MEDIUM", "HARD", "INTERMEDIATE"],
         linewidth=0,
-        size=4.5
+        size=4.5,
     )
 
-def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_order, ax):
+
+def plot_statistical_intervals(
+    driver_laps, driver_laps_statistics, finishing_order, ax
+):
     """Plot the statistical intervals."""
     ylim_max = 0
     ylim_min = 1000
@@ -79,7 +93,9 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
     xpos_array = []
 
     for driver in finishing_order:
-        driver_data_all = driver_laps_statistics[driver_laps_statistics["Driver"] == driver]["LapTime(s)"]
+        driver_data_all = driver_laps_statistics[
+            driver_laps_statistics["Driver"] == driver
+        ]["LapTime(s)"]
         driver_data = driver_laps[driver_laps["Driver"] == driver]["LapTime(s)"]
         mean = driver_data_all.mean()
         lower_68, upper_68 = np.percentile(driver_data, [16, 84])  # 68% interval
@@ -101,7 +117,7 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
             colors="white",
             linestyle=":",
             lw=1.4,
-            label="95% Interval" if driver == finishing_order[0] else ""
+            label="95% Interval" if driver == finishing_order[0] else "",
         )
         ax.hlines(
             lower_95,
@@ -110,7 +126,7 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
             colors="white",
             linestyle=":",
             lw=1.4,
-            label="Median" if driver == finishing_order[0] else ""
+            label="Median" if driver == finishing_order[0] else "",
         )
         ax.hlines(
             upper_95,
@@ -119,7 +135,7 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
             colors="white",
             linestyle=":",
             lw=1.4,
-            label="Median" if driver == finishing_order[0] else ""
+            label="Median" if driver == finishing_order[0] else "",
         )
 
         # Plot 68% interval
@@ -130,7 +146,7 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
             colors="white",
             linestyle="-",
             lw=1.4,
-            label="68% Interval" if driver == finishing_order[0] else ""
+            label="68% Interval" if driver == finishing_order[0] else "",
         )
         ax.hlines(
             lower_68,
@@ -139,7 +155,7 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
             colors="white",
             linestyle="-",
             lw=1.4,
-            label="Median" if driver == finishing_order[0] else ""
+            label="Median" if driver == finishing_order[0] else "",
         )
         ax.hlines(
             upper_68,
@@ -148,10 +164,11 @@ def plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_or
             colors="white",
             linestyle="-",
             lw=1.4,
-            label="Median" if driver == finishing_order[0] else ""
+            label="Median" if driver == finishing_order[0] else "",
         )
 
     return mean_laptime_array, xpos_array, ylim_min, ylim_max
+
 
 def plot_mean_laptime(mean_laptime_array, xpos_array, ylim_min, ylim_max, ax):
     """Plot the mean lap time."""
@@ -161,7 +178,9 @@ def plot_mean_laptime(mean_laptime_array, xpos_array, ylim_min, ylim_max, ax):
     twin.set_ylabel(r"$\mathbf{Mean\ Lap\ Time\ (s)}$", fontsize=14, color="gray")
 
     xnew = np.linspace(xpos_array[0], xpos_array[-1], 300)
-    spl = make_interp_spline(xpos_array, mean_laptime_array, k=B_SPLINE_DEG)  # B-spline degree
+    spl = make_interp_spline(
+        xpos_array, mean_laptime_array, k=B_SPLINE_DEG
+    )  # B-spline degree
     mean_smooth = spl(xnew)
     twin.plot(xnew, mean_smooth, "--", color="gray")
     twin.plot(
@@ -170,31 +189,40 @@ def plot_mean_laptime(mean_laptime_array, xpos_array, ylim_min, ylim_max, ax):
         "o",
         color="gray",
         markersize=4.5,
-        label="Mean Lap Time"
+        label="Mean Lap Time",
     )
     twin.set_ylim([ylim_min - 1, ylim_max + 1])
 
     twin.legend(loc="lower right")
     return twin
 
+
 def add_legend(fig, ax):
     """Add the legend to the plot."""
     legend_handles = [
         Line2D([0], [0], color="white", linestyle="-", lw=1.4, label="68% Interval"),
-        Line2D([0], [0], color="white", linestyle=":", lw=1.4, label="95% Interval")
+        Line2D([0], [0], color="white", linestyle=":", lw=1.4, label="95% Interval"),
     ]
     fig.legend(
         title="Statistical Intervals",
         handles=legend_handles,
         loc="upper left",
-        bbox_to_anchor=(0.08, 0.95)
+        bbox_to_anchor=(0.08, 0.95),
     )
+
 
 def save_plot(fig, year, event_name):
     """Save the plot to a file."""
     suptitle = f"{year} {event_name} Grand Prix Driver Lap Time Distributions"
     plt.suptitle(suptitle, fontweight="bold", fontsize=16)
-    plt.figtext(0.5, 0.935, "with Statistical Intervals and Tire Compound Labeled", ha="center", fontsize=14, bbox=dict(facecolor=fig.get_facecolor(), alpha=0.5, edgecolor="none"))
+    plt.figtext(
+        0.5,
+        0.935,
+        "with Statistical Intervals and Tire Compound Labeled",
+        ha="center",
+        fontsize=14,
+        bbox=dict(facecolor=fig.get_facecolor(), alpha=0.5, edgecolor="none"),
+    )
     plt.tight_layout()
 
     filename = f"../pic/{suptitle.replace(' ', '_')}.png"
@@ -202,13 +230,17 @@ def save_plot(fig, year, event_name):
 
     return filename
 
+
 def create_caption(year, event_name):
     """Create a caption for the plot."""
     titles_str = f"{event_name} Grand Prix"
     caption = f"🏎️\n« {year} {event_name} Grand Prix »\n\n• {titles_str}\n\n#F1 #Formula1 #{event_name.replace(' ', '')}GP"
     return caption
 
-def driver_laptimes_distribution(year: int, event_name: str, session_name: str, race, post: bool) -> dict:
+
+def driver_laptimes_distribution(
+    year: int, event_name: str, session_name: str, race, post: bool
+) -> dict:
     """Visualize lap time distributions of different drivers."""
     load_race_data(race)
 
@@ -219,12 +251,16 @@ def driver_laptimes_distribution(year: int, event_name: str, session_name: str, 
     driver_colors = get_driver_colors()
 
     driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
-    driver_laps_statistics["LapTime(s)"] = driver_laps_statistics["LapTime"].dt.total_seconds()
+    driver_laps_statistics["LapTime(s)"] = driver_laps_statistics[
+        "LapTime"
+    ].dt.total_seconds()
 
     fig, ax = plot_lap_time_distributions(driver_laps, finishing_order, driver_colors)
     plot_actual_laptimes(driver_laps, finishing_order)
 
-    mean_laptime_array, xpos_array, ylim_min, ylim_max = plot_statistical_intervals(driver_laps, driver_laps_statistics, finishing_order, ax)
+    mean_laptime_array, xpos_array, ylim_min, ylim_max = plot_statistical_intervals(
+        driver_laps, driver_laps_statistics, finishing_order, ax
+    )
     plot_mean_laptime(mean_laptime_array, xpos_array, ylim_min, ylim_max, ax)
 
     add_legend(fig, ax)
