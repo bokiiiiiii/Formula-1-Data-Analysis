@@ -10,6 +10,7 @@ QUICKLAP_THRESHOLD = 1.05
 MARKERS = [".", "*"]
 LINES = ["--", ":"]
 
+
 def load_race_data(race):
     """Load race data."""
     try:
@@ -17,13 +18,16 @@ def load_race_data(race):
     except Exception as e:
         raise RuntimeError(f"Error loading race data: {e}")
 
+
 def get_podium_finishers(race):
     """Get the top 2 finishers."""
     return race.drivers[:2]
 
+
 def get_driver_laps(race, driver):
     """Get the laps for a driver."""
     return race.laps.pick_drivers(driver).pick_quicklaps(QUICKLAP_THRESHOLD)
+
 
 def get_stints_laps(race):
     """Get the stints laps data."""
@@ -31,6 +35,7 @@ def get_stints_laps(race):
     stints = stints_laps[["Driver", "Stint", "LapNumber"]]
     stints = stints.groupby(["Driver", "Stint"]).count().reset_index()
     return stints
+
 
 def plot_driver_laps(ax, driver_laps, driver_index, driver_color):
     """Plot the driver laps."""
@@ -46,10 +51,12 @@ def plot_driver_laps(ax, driver_laps, driver_index, driver_color):
         linewidth=0,
     )
 
+
 def plot_pit_lap_lines(ax, pit_lap_lines, driver_color):
     """Plot the pit lap lines."""
     for pit_lap_line in pit_lap_lines:
         ax.axvline(x=pit_lap_line, color=driver_color, linestyle="-", linewidth=1.5)
+
 
 def plot_stint_trendlines(ax, stint_laps, driver_color, driver_index, lines):
     """Plot the stint trendlines."""
@@ -73,7 +80,11 @@ def plot_stint_trendlines(ax, stint_laps, driver_color, driver_index, lines):
             line_kws={"linestyle": lines[driver_index], "linewidth": 1.4},
         )
 
-        midpoint = (X.min() + X.max()) / 2 - 1 if driver_index == 0 else (X.min() + X.max()) / 2 + 1
+        midpoint = (
+            (X.min() + X.max()) / 2 - 1
+            if driver_index == 0
+            else (X.min() + X.max()) / 2 + 1
+        )
         text_y_position = reg.predict([[midpoint]])[0][0]
         slope_str = f"+{slope:.3f} s/lap" if slope > 0 else f"{slope:.3f} s/lap"
         slope_str_array.append(slope_str.replace(" s/lap", ""))
@@ -87,6 +98,7 @@ def plot_stint_trendlines(ax, stint_laps, driver_color, driver_index, lines):
             verticalalignment="bottom",
         )
     return slope_str_array
+
 
 def plot_annotations(ax, pit_lap_array, driver_laps):
     """Plot pit lap annotations."""
@@ -104,11 +116,13 @@ def plot_annotations(ax, pit_lap_array, driver_laps):
         )
         ax.axvspan(pit_lap - 0.5, pit_lap + 0.5, color="grey", alpha=0.3)
 
+
 def set_plot_labels(ax, race):
     """Set plot labels."""
     ax.set_xlabel("Lap Number", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
     ax.set_xlim(1, race.laps["LapNumber"].max())
+
 
 def add_plot_titles(fig, ax, year, event_name, drivers_abbr):
     """Add plot titles and subtitles."""
@@ -136,6 +150,7 @@ def add_plot_titles(fig, ax, year, event_name, drivers_abbr):
         bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
     )
 
+
 def save_plot(fig, year, event_name):
     """Save the plot to a file."""
     suptitle = f"{year} {event_name} Grand Prix Driver Lap Time Variation"
@@ -143,7 +158,15 @@ def save_plot(fig, year, event_name):
     plt.savefig(filename)
     return filename
 
-def create_caption(year, event_name, drivers_abbr, pit_lap_caption_arrays, tire_type_arrays, slope_str_arrays):
+
+def create_caption(
+    year,
+    event_name,
+    drivers_abbr,
+    pit_lap_caption_arrays,
+    tire_type_arrays,
+    slope_str_arrays,
+):
     """Create a caption for the plot."""
     titles_str = f"{event_name} Grand Prix"
     caption = f"""\
@@ -173,6 +196,7 @@ def create_caption(year, event_name, drivers_abbr, pit_lap_caption_arrays, tire_
 #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
     return caption
 
+
 def initialize_driver_data():
     """Initialize the driver data dictionary."""
     return {
@@ -181,8 +205,9 @@ def initialize_driver_data():
         "drivers_abbr": [],
         "slope_str_arrays": [],
         "tire_type_arrays": [],
-        "pit_lap_caption_arrays": []
+        "pit_lap_caption_arrays": [],
     }
+
 
 def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
     """Process data for a single driver."""
@@ -195,10 +220,17 @@ def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
     driver_color = fastf1.plotting.DRIVER_COLORS[driver_name]
     driver_data["legend_elements"].append(
         Line2D(
-            [0], [0], marker=MARKERS[driver_index], color=driver_color, markerfacecolor=driver_color, label=driver_abbr, markersize=10, linestyle=""
+            [0],
+            [0],
+            marker=MARKERS[driver_index],
+            color=driver_color,
+            markerfacecolor=driver_color,
+            label=driver_abbr,
+            markersize=10,
+            linestyle="",
         )
     )
-    
+
     stints_stints = stints.loc[stints["Driver"] == driver_abbr]
     pit_lap_lines = []
     pit_lap_caption_array = []
@@ -213,34 +245,63 @@ def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
         driver_data["pit_lap_array"].pop()
         pit_lap_lines.pop()
 
-    slope_str_array = plot_stint_trendlines(ax, driver_laps, driver_color, driver_index, LINES)
+    slope_str_array = plot_stint_trendlines(
+        ax, driver_laps, driver_color, driver_index, LINES
+    )
     driver_data["slope_str_arrays"].append(slope_str_array)
-    driver_data["tire_type_arrays"].append([driver_laps[driver_laps["Stint"] == stint]["Compound"].iloc[0] for stint in driver_laps["Stint"].unique()])
+    driver_data["tire_type_arrays"].append(
+        [
+            driver_laps[driver_laps["Stint"] == stint]["Compound"].iloc[0]
+            for stint in driver_laps["Stint"].unique()
+        ]
+    )
     driver_data["pit_lap_caption_arrays"].append(pit_lap_caption_array)
 
     return driver_laps, pit_lap_lines
 
-def driver_laptimes_scatterplot(year: int, event_name: str, session_name: str, race, post: bool) -> dict:
+
+def driver_laptimes_scatterplot(
+    year: int, event_name: str, session_name: str, race, post: bool
+) -> dict:
     """Plot driver lap times variation with pit lap annotations."""
     load_race_data(race)
     podium_finishers = get_podium_finishers(race)
     stints = get_stints_laps(race)
-    
+
     fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
     driver_data = initialize_driver_data()
 
     for i, driver in enumerate(podium_finishers):
-        driver_laps, pit_lap_lines = process_driver_data(ax, race, stints, driver, i, driver_data)
-        plot_driver_laps(ax, driver_laps, i, fastf1.plotting.DRIVER_COLORS[fastf1.plotting.DRIVER_TRANSLATE[race.get_driver(driver)["Abbreviation"]]])
-        plot_pit_lap_lines(ax, pit_lap_lines, fastf1.plotting.DRIVER_COLORS[fastf1.plotting.DRIVER_TRANSLATE[race.get_driver(driver)["Abbreviation"]]])
+        driver_laps, pit_lap_lines = process_driver_data(
+            ax, race, stints, driver, i, driver_data
+        )
+        plot_driver_laps(
+            ax,
+            driver_laps,
+            i,
+            fastf1.plotting.DRIVER_COLORS[
+                fastf1.plotting.DRIVER_TRANSLATE[
+                    race.get_driver(driver)["Abbreviation"]
+                ]
+            ],
+        )
+        plot_pit_lap_lines(
+            ax,
+            pit_lap_lines,
+            fastf1.plotting.DRIVER_COLORS[
+                fastf1.plotting.DRIVER_TRANSLATE[
+                    race.get_driver(driver)["Abbreviation"]
+                ]
+            ],
+        )
 
     plot_annotations(ax, driver_data["pit_lap_array"], driver_laps)
     set_plot_labels(ax, race)
     add_plot_titles(fig, ax, year, event_name, driver_data["drivers_abbr"])
-    
+
     sns.despine(left=True, bottom=True)
     plt.tight_layout()
-    
+
     ax.legend(title="Compound", loc="upper right")
     fig.legend(
         title="Drivers",
@@ -248,8 +309,15 @@ def driver_laptimes_scatterplot(year: int, event_name: str, session_name: str, r
         loc="upper left",
         bbox_to_anchor=(0.08, 0.95),
     )
-    
+
     filename = save_plot(fig, year, event_name)
-    caption = create_caption(year, event_name, driver_data["drivers_abbr"], driver_data["pit_lap_caption_arrays"], driver_data["tire_type_arrays"], driver_data["slope_str_arrays"])
-    
+    caption = create_caption(
+        year,
+        event_name,
+        driver_data["drivers_abbr"],
+        driver_data["pit_lap_caption_arrays"],
+        driver_data["tire_type_arrays"],
+        driver_data["slope_str_arrays"],
+    )
+
     return {"filename": filename, "caption": caption, "post": post}
