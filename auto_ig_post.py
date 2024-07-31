@@ -3,13 +3,14 @@ import time
 import os
 from playwright.sync_api import Playwright, sync_playwright
 
+
 def auto_ig_post(image_path: str, caption: str) -> None:
     """Automate Instagram post using Playwright."""
-    
+
     # Fetching credentials from environment variables
     username = os.environ.get("INSTAGRAM_USERNAME")
     password = os.environ.get("INSTAGRAM_PASSWORD")
-    
+
     if not username or not password:
         raise ValueError("Instagram credentials are not set in environment variables.")
 
@@ -59,7 +60,7 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         browser = playwright.chromium.launch(headless=False)
         context = browser.new_context()
         page = context.new_page()
-        
+
         try:
             login(page)
             upload_post(page)
