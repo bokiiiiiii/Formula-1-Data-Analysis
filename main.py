@@ -11,19 +11,19 @@ from plot_functions import *
 # Parameters
 YEAR = 2024
 EVENT_NAME = "Belgian"
-SESSION_NAME = "R"
+SESSION_NAME = "Q+R"
 
 FUNC_PARAMS = {
     # Free Practice
     "plot_track_with_annotated_corners": {"enabled": False, "session": "FP1"},
     # Qualify
-    "annotated_qualifying_flying_lap": {"enabled": False, "session": "Q"},
+    "annotated_qualifying_flying_lap": {"enabled": True, "session": "Q"},
     # Race
-    "driver_laptimes_distribution": {"enabled": False, "session": "R"},
-    "team_pace_ranking": {"enabled": False, "session": "R"},
-    "driver_laptimes_scatterplot": {"enabled": False, "session": "R"},
     "annotated_race_fatest_lap": {"enabled": False, "session": "R"},
-    "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"},
+    "driver_laptimes_distribution": {"enabled": False, "session": "R"},
+    "driver_laptimes_scatterplot": {"enabled": False, "session": "R"},
+    "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"}, # NOT DONE
+    "team_pace_ranking": {"enabled": False, "session": "R"}, # NOT DONE
     # Sprint Qualify
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }
