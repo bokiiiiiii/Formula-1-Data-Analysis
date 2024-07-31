@@ -6,17 +6,26 @@ import fastf1.plotting
 import fastf1.utils
 
 
-def race_fatest_lap_telemetry_data(year: int, event_name: str, session_name: str, race, post: bool) -> dict:
+def race_fatest_lap_telemetry_data(
+    year: int, event_name: str, session_name: str, race, post: bool
+) -> dict:
     """Plot the telemetry data of the race fastest laps."""
 
     def get_driver_team_info(driver):
         return race.laps[race.laps["Driver"] == driver]["Team"].iloc[0]
 
     def get_lap_time_str(lap_time):
-        return f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:.3f}"
+        return (
+            f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:.3f}"
+        )
 
     def plot_telemetry_data(ax, car_data, team_color, driver, linestyle, data_label):
-        ax.plot(car_data["Distance"], car_data[data_label], color=team_color, linestyle=linestyle)
+        ax.plot(
+            car_data["Distance"],
+            car_data[data_label],
+            color=team_color,
+            linestyle=linestyle,
+        )
 
     def plot_speed_data(ax, car_data, team_color, driver, linestyle, lap_time_str):
         ax.plot(
@@ -128,8 +137,12 @@ def race_fatest_lap_telemetry_data(year: int, event_name: str, session_name: str
         v_max = max(v_max, car_data["Speed"].max())
         d_max = max(d_max, car_data["Distance"].max())
 
-    speed_diff = abs(driver_data["top_speeds"][drivers[0]] - driver_data["top_speeds"][drivers[1]])
-    laptime_diff = abs(driver_data["lap_time_array"][0] - driver_data["lap_time_array"][1])
+    speed_diff = abs(
+        driver_data["top_speeds"][drivers[0]] - driver_data["top_speeds"][drivers[1]]
+    )
+    laptime_diff = abs(
+        driver_data["lap_time_array"][0] - driver_data["lap_time_array"][1]
+    )
     laptime_diff_str = f"{laptime_diff % 60:.3f}"
 
     for a in ax.flat:
@@ -146,8 +159,15 @@ def race_fatest_lap_telemetry_data(year: int, event_name: str, session_name: str
     ax[2].set_ylabel("Brakes (%)", fontweight="bold", fontsize=12)
     ax[2].set_yticklabels([str(i) for i in range(-20, 101, 20)])
 
-    delta_time, ref_tel, _ = fastf1.utils.delta_time(driver_data["compared_laps"][1], driver_data["compared_laps"][0])
-    ax[3].plot(ref_tel["Distance"], delta_time, color=driver_data["team_colors"][1], label=drivers[1])
+    delta_time, ref_tel, _ = fastf1.utils.delta_time(
+        driver_data["compared_laps"][1], driver_data["compared_laps"][0]
+    )
+    ax[3].plot(
+        ref_tel["Distance"],
+        delta_time,
+        color=driver_data["team_colors"][1],
+        label=drivers[1],
+    )
 
     ax[3].set_ylabel("Delta Lap Time (s)", fontweight="bold", fontsize=12)
     ax[3].set_xlabel("Distance (m)", fontweight="bold", fontsize=12)

@@ -4,6 +4,7 @@ import fastf1
 import textwrap
 import fastf1.plotting
 
+
 # Helper function to load and process race data
 def load_race_data(race):
     race.load()
@@ -11,6 +12,7 @@ def load_race_data(race):
     transformed_laps = laps.copy()
     transformed_laps["LapTime (s)"] = laps["LapTime"].dt.total_seconds()
     return transformed_laps
+
 
 # Helper function to compute team order based on median lap times
 def compute_team_order(transformed_laps):
@@ -22,9 +24,11 @@ def compute_team_order(transformed_laps):
         .index
     )
 
+
 # Helper function to generate team color palette
 def generate_team_palette(team_order):
     return {team: fastf1.plotting.team_color(team) for team in team_order}
+
 
 # Helper function to plot team pace ranking
 def plot_team_pace_ranking(ax, transformed_laps, team_order, team_palette):
@@ -41,16 +45,18 @@ def plot_team_pace_ranking(ax, transformed_laps, team_order, team_palette):
         capprops=dict(color="white"),
         linewidth=1,
         width=0.5,
-        ax=ax
+        ax=ax,
     )
 
     ax.set_xlabel("Team", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
 
+
 # Helper function to save the plot
 def save_plot(fig, filename):
     plt.tight_layout()
     plt.savefig(filename)
+
 
 # Helper function to generate the caption for the post
 def generate_caption(year, event_name, titles_str):
@@ -64,8 +70,11 @@ def generate_caption(year, event_name, titles_str):
 #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
     )
 
+
 # Main function to plot team pace ranking and generate post data
-def team_pace_ranking(year: int, event_name: str, session_name: str, race, post: bool) -> dict:
+def team_pace_ranking(
+    year: int, event_name: str, session_name: str, race, post: bool
+) -> dict:
     transformed_laps = load_race_data(race)
     team_order = compute_team_order(transformed_laps)
     team_palette = generate_team_palette(team_order)
@@ -80,7 +89,11 @@ def team_pace_ranking(year: int, event_name: str, session_name: str, race, post:
     filename = f"../pic/{suptitle.replace(' ', '_')}.png"
     save_plot(fig, filename)
 
-    titles_str = suptitle.replace(f"{year} ", "").replace(f"{event_name} ", "").replace("Grand Prix ", "")
+    titles_str = (
+        suptitle.replace(f"{year} ", "")
+        .replace(f"{event_name} ", "")
+        .replace("Grand Prix ", "")
+    )
     caption = generate_caption(year, event_name, titles_str)
 
     return {"filename": filename, "caption": caption, "post": post}

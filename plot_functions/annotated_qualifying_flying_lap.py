@@ -6,7 +6,9 @@ import fastf1.plotting
 import fastf1.utils
 
 
-def annotated_qualifying_flying_lap(year: int, event_name: str, session_name: str, race, post: bool) -> dict:
+def annotated_qualifying_flying_lap(
+    year: int, event_name: str, session_name: str, race, post: bool
+) -> dict:
     """Plot the speed of a qualifying flying lap and add annotations to mark corners."""
 
     def get_driver_team_info(driver):
@@ -24,9 +26,17 @@ def annotated_qualifying_flying_lap(year: int, event_name: str, session_name: st
             linestyle=linestyle,
         )
 
-    def annotate_top_speed(ax, car_data, top_speed, driver, bg_color, team_color, index):
-        top_speed_distance = car_data[car_data["Speed"] == top_speed]["Distance"].iloc[0]
-        ypos = top_speed + 5 * index if top_speed > driver_data["top_speeds"][drivers[0]] else top_speed - 5 * index
+    def annotate_top_speed(
+        ax, car_data, top_speed, driver, bg_color, team_color, index
+    ):
+        top_speed_distance = car_data[car_data["Speed"] == top_speed]["Distance"].iloc[
+            0
+        ]
+        ypos = (
+            top_speed + 5 * index
+            if top_speed > driver_data["top_speeds"][drivers[0]]
+            else top_speed - 5 * index
+        )
         ax.annotate(
             f"Top Speed: {top_speed:.1f} km/h",
             xy=(top_speed_distance, ypos),
@@ -57,11 +67,15 @@ def annotated_qualifying_flying_lap(year: int, event_name: str, session_name: st
             )
 
     def plot_delta_time(ax, compared_laps, d_max):
-        delta_time, ref_tel, _ = fastf1.utils.delta_time(compared_laps[0], compared_laps[1])
+        delta_time, ref_tel, _ = fastf1.utils.delta_time(
+            compared_laps[0], compared_laps[1]
+        )
         twin = ax.twinx()
         twin.plot(ref_tel["Distance"], delta_time, "--", color="white")
         twin.set_ylabel(r"$\mathbf{Delta\ Lap\ Time\ (s)}$", fontsize=14)
-        twin.yaxis.set_major_formatter(lambda x, pos: f"+{x:.1f}" if x > 0 else f"{x:.1f}")
+        twin.yaxis.set_major_formatter(
+            lambda x, pos: f"+{x:.1f}" if x > 0 else f"{x:.1f}"
+        )
         plt.text(
             d_max * 1.075,
             0,
@@ -111,7 +125,9 @@ def annotated_qualifying_flying_lap(year: int, event_name: str, session_name: st
         )
 
     def process_driver_lap_data(driver, index, same_team, v_min, v_max, d_max):
-        _, _, q3lap = race.laps[race.laps["Driver"] == driver].split_qualifying_sessions()
+        _, _, q3lap = race.laps[
+            race.laps["Driver"] == driver
+        ].split_qualifying_sessions()
         lap = q3lap.pick_fastest()
         driver_data["compared_laps"].append(lap)
         car_data = lap.get_car_data().add_distance()
@@ -161,10 +177,16 @@ def annotated_qualifying_flying_lap(year: int, event_name: str, session_name: st
     bg_color = ax.get_facecolor()
 
     for i, driver in enumerate(drivers):
-        v_min, v_max, d_max = process_driver_lap_data(driver, i, same_team, v_min, v_max, d_max)
+        v_min, v_max, d_max = process_driver_lap_data(
+            driver, i, same_team, v_min, v_max, d_max
+        )
 
-    speed_diff = abs(driver_data["top_speeds"][drivers[0]] - driver_data["top_speeds"][drivers[1]])
-    laptime_diff = abs(driver_data["lap_time_array"][0] - driver_data["lap_time_array"][1])
+    speed_diff = abs(
+        driver_data["top_speeds"][drivers[0]] - driver_data["top_speeds"][drivers[1]]
+    )
+    laptime_diff = abs(
+        driver_data["lap_time_array"][0] - driver_data["lap_time_array"][1]
+    )
     laptime_diff_str = f"{laptime_diff % 60:.3f}"
 
     circuit_info = race.get_circuit_info()
@@ -183,7 +205,9 @@ def annotated_qualifying_flying_lap(year: int, event_name: str, session_name: st
     plt.suptitle(suptitle, fontweight="bold", fontsize=16)
 
     subtitle = "with Track Corners Annotated"
-    subtitle_lower = f"{driver_data['abbreviations'][0]} vs {driver_data['abbreviations'][1]}"
+    subtitle_lower = (
+        f"{driver_data['abbreviations'][0]} vs {driver_data['abbreviations'][1]}"
+    )
     pltbg_color = fig.get_facecolor()
     plt.figtext(
         0.5,

@@ -22,8 +22,8 @@ FUNC_PARAMS = {
     "annotated_race_fatest_lap": {"enabled": False, "session": "R"},
     "driver_laptimes_distribution": {"enabled": False, "session": "R"},
     "driver_laptimes_scatterplot": {"enabled": False, "session": "R"},
-    "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"}, # NOT DONE
-    "team_pace_ranking": {"enabled": False, "session": "R"}, # NOT DONE
+    "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"},  # NOT DONE
+    "team_pace_ranking": {"enabled": False, "session": "R"},  # NOT DONE
     # Sprint Qualify
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }
