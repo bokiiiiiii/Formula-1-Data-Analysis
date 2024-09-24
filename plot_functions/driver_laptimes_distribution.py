@@ -250,6 +250,8 @@ def driver_laptimes_distribution(
     finishing_order = get_finishing_order(race, point_finishers)
     driver_colors = get_driver_colors()
 
+    driver_colors["COL"] = "#005aff"  # WORKAROUND
+
     driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
     driver_laps_statistics["LapTime(s)"] = driver_laps_statistics[
         "LapTime"
