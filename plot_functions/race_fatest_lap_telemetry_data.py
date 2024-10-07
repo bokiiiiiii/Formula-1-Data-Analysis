@@ -112,7 +112,7 @@ def race_fatest_lap_telemetry_data(
         lap = race.laps[race.laps["Driver"] == driver].pick_fastest()
         driver_data["compared_laps"].append(lap)
         car_data = lap.get_car_data().add_distance()
-        team_color = fastf1.plotting.team_color(lap["Team"])
+        team_color = fastf1.plotting.get_team_color(lap["Team"], race)
         driver_data["team_colors"].append(team_color)
 
         lap_time = lap["LapTime"]
