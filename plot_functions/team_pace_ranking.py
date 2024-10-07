@@ -35,8 +35,8 @@ def compute_team_order(transformed_laps):
 
 
 # Helper function to generate team color palette
-def generate_team_palette(team_order):
-    return {team: fastf1.plotting.team_color(team) for team in team_order}
+def generate_team_palette(team_order, race):
+    return {team: fastf1.plotting.get_team_color(team, race) for team in team_order}
 
 
 # Helper function to plot team pace ranking
@@ -157,7 +157,7 @@ def team_pace_ranking(
 ) -> dict:
     transformed_laps = load_race_data(race)
     team_order = compute_team_order(transformed_laps)
-    team_palette = generate_team_palette(team_order)
+    team_palette = generate_team_palette(team_order, race)
 
     fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
     plot_team_pace_ranking(ax, transformed_laps, team_order, team_palette)
