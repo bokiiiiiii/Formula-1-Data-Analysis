@@ -4,6 +4,8 @@ import matplotlib, textwrap
 import fastf1
 import fastf1.plotting
 import fastf1.utils
+from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter1d
 
 
 def race_fatest_lap_telemetry_data(
@@ -45,11 +47,13 @@ def race_fatest_lap_telemetry_data(
             first_brake_points["Distance"],
             first_brake_points["Brake"],
             color=team_color,
-            s=50,
+            s=30,
             zorder=5,
             edgecolor="black",
             label=f"{driver} Brake Points",
         )
+
+        ax.legend(loc="upper right")
 
     def save_plot(fig, filename):
         plt.tight_layout()
@@ -89,7 +93,7 @@ def race_fatest_lap_telemetry_data(
     race_results = race.results
     front_row = race_results[:2]
 
-    fig, ax = plt.subplots(4, figsize=(10.8, 10.8), dpi=100)
+    fig, ax = plt.subplots(5, figsize=(10.8, 10.8), dpi=100)
 
     drivers = list(front_row["Abbreviation"])
     teams = [get_driver_team_info(driver) for driver in drivers]
@@ -120,10 +124,25 @@ def race_fatest_lap_telemetry_data(
         driver_data["lap_time_array"].append(lap_time.total_seconds())
         driver_data["lap_time_str"].append(lap_time_str)
 
+        car_data = driver_data["compared_laps"][i].get_car_data().add_distance()
+        car_data["Acceleration"] = (
+            car_data["Speed"].diff() / car_data["Distance"].diff()
+        )
+        car_data["Acceleration"] = gaussian_filter1d(
+            car_data["Acceleration"].fillna(0), sigma=1.5
+        )
+
         linestyle = "-" if i == 0 or not same_team else "--"
         plot_speed_data(ax[0], car_data, team_color, driver, linestyle, lap_time_str)
         plot_telemetry_data(ax[1], car_data, team_color, driver, linestyle, "Throttle")
         plot_telemetry_data(ax[2], car_data, team_color, driver, linestyle, "Brake")
+        ax[3].plot(
+            car_data["Distance"],
+            car_data["Acceleration"],
+            color=driver_data["team_colors"][i],
+            linestyle="-",
+            label=f"{driver} Acceleration",
+        )
 
         annotate_brake_points(ax[2], car_data, team_color, driver)
 
@@ -145,6 +164,20 @@ def race_fatest_lap_telemetry_data(
     )
     laptime_diff_str = f"{laptime_diff % 60:.3f}"
 
+    car_data1 = driver_data["compared_laps"][0].get_car_data().add_distance()
+    car_data2 = driver_data["compared_laps"][1].get_car_data().add_distance()
+
+    interp_speed2 = interp1d(
+        car_data2["Distance"],
+        car_data2["Speed"],
+        kind="linear",
+        bounds_error=False,
+        fill_value="extrapolate",
+    )
+    aligned_speed2 = interp_speed2(car_data1["Distance"])
+    speed_difference = car_data1["Speed"] - aligned_speed2
+    max_diff = max(abs(speed_difference))
+
     for a in ax.flat:
         a.label_outer()
         a.grid(True, alpha=0.3)
@@ -154,24 +187,47 @@ def race_fatest_lap_telemetry_data(
     ax[0].set_ylabel("Speed (km/h)", fontweight="bold", fontsize=12)
     ax[0].legend(title="Drivers", loc="upper right")
 
+    ax0_right = ax[0].twinx()
+    ax0_right.set_ylim(-max_diff, max_diff)
+    ax0_right.plot(
+        car_data1["Distance"],
+        speed_difference,
+        color="white",
+        linestyle=":",
+        label="Speed Diffrence",
+    )
+
+    ax0_right.set_ylabel(
+        "Speed Difference (km/h)", fontweight="bold", fontsize=12, color="white"
+    )
+    ax0_right.tick_params(axis="y", labelcolor="white")
+    ax0_right.grid(False)
+
+    lines_1, labels_1 = ax[0].get_legend_handles_labels()
+    lines_2, labels_2 = ax0_right.get_legend_handles_labels()
+    ax[0].legend(lines_1 + lines_2, labels_1 + labels_2, loc="upper right")
+
     ax[1].set_ylabel("Throttle (%)", fontweight="bold", fontsize=12)
 
     ax[2].set_ylabel("Brakes (%)", fontweight="bold", fontsize=12)
     ax[2].set_yticklabels([str(i) for i in range(-20, 101, 20)])
 
+    ax[3].set_ylabel("Acceleration (m/s²)", fontweight="bold", fontsize=12)
+    ax[3].grid(True, alpha=0.3)
+
     delta_time, ref_tel, _ = fastf1.utils.delta_time(
         driver_data["compared_laps"][1], driver_data["compared_laps"][0]
     )
-    ax[3].plot(
+    ax[4].plot(
         ref_tel["Distance"],
         delta_time,
         color=driver_data["team_colors"][1],
         label=drivers[1],
     )
 
-    ax[3].set_ylabel("Delta Lap Time (s)", fontweight="bold", fontsize=12)
-    ax[3].set_xlabel("Distance (m)", fontweight="bold", fontsize=12)
-    ax[3].legend(title="Driver", loc="upper right")
+    ax[4].set_ylabel("Delta Lap Time (s)", fontweight="bold", fontsize=12)
+    ax[4].set_xlabel("Distance (m)", fontweight="bold", fontsize=12)
+    ax[4].legend(title="Driver", loc="upper right")
 
     suptitle = f"{year} {event_name} Grand Prix Driver Race Fastest Lap Telemetry"
     plt.suptitle(suptitle, fontweight="bold", fontsize=16)
