@@ -10,6 +10,7 @@ from matplotlib.lines import Line2D
 
 
 # Parameters
+QUICKLAP_THRESHOLD = 1.3
 WIDTH = 0.5
 B_SPLINE_DEG = 2
 
@@ -17,7 +18,7 @@ B_SPLINE_DEG = 2
 # Helper function to load and process race data
 def load_race_data(race):
     race.load()
-    laps = race.laps.pick_quicklaps()
+    laps = race.laps.pick_quicklaps(QUICKLAP_THRESHOLD)
     transformed_laps = laps.copy()
     transformed_laps["LapTime (s)"] = laps["LapTime"].dt.total_seconds()
     return transformed_laps

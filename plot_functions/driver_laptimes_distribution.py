@@ -8,7 +8,7 @@ import fastf1.plotting
 
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.05
+QUICKLAP_THRESHOLD = 1.3
 BANDWIDTH = 0.17
 B_SPLINE_DEG = 2
 
@@ -41,13 +41,18 @@ def get_finishing_order(race, point_finishers):
     return [race.get_driver(i)["Abbreviation"] for i in point_finishers]
 
 
-def get_driver_colors():
-    """Get the driver colors."""
-    return {
-        abv: fastf1.plotting.DRIVER_COLORS[driver]
-        for abv, driver in fastf1.plotting.DRIVER_TRANSLATE.items()
-    }
+def get_driver_colors(race):
+    """Retrieve driver colors for a given session, handling missing drivers."""
+    driver_colors = {}
 
+    # Retrieve valid driver abbreviations from the session
+    valid_drivers = {race.get_driver(driver)["Abbreviation"]: driver for driver in race.drivers}
+
+    for driver_abbreviation in valid_drivers:
+        driver_style = fastf1.plotting.get_driver_style(driver_abbreviation, style='color', session=race)
+        driver_colors[driver_abbreviation] = driver_style['color']
+
+    return driver_colors
 
 def plot_lap_time_distributions(driver_laps, finishing_order, driver_colors):
     """Plot the lap time distributions."""
@@ -248,9 +253,7 @@ def driver_laptimes_distribution(
     driver_laps = get_driver_laps(race, point_finishers).reset_index()
     driver_laps_statistics = get_driver_statistics(race, point_finishers)
     finishing_order = get_finishing_order(race, point_finishers)
-    driver_colors = get_driver_colors()
-
-    driver_colors["COL"] = "#005aff"  # WORKAROUND
+    driver_colors = get_driver_colors(race)
 
     driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
     driver_laps_statistics["LapTime(s)"] = driver_laps_statistics[

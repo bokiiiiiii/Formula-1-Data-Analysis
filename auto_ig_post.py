@@ -53,7 +53,7 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         page.get_by_label("撰寫說明文字……").fill(caption)
         time.sleep(10)
 
-        page.get_by_role("button", name="分享").click()
+        page.get_by_role("button", name="分享", exact=True).click()
         time.sleep(10)
 
     with sync_playwright() as playwright:
