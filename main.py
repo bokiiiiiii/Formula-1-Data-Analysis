@@ -9,9 +9,9 @@ from auto_ig_post import auto_ig_post
 from plot_functions import *
 
 # Parameters
-YEAR = 2024
-EVENT_NAME = "Abu Dhabi"
-SESSION_NAME = "FP1+Q+R"
+YEAR = 2025
+EVENT_NAME = "Japanese"
+SESSION_NAME = "R"
 
 FUNC_PARAMS = {
     # Free Practice
@@ -24,6 +24,7 @@ FUNC_PARAMS = {
     "driver_laptimes_scatterplot": {"enabled": False, "session": "R"},
     "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"},
     "team_pace_ranking": {"enabled": False, "session": "R"},
+    "driver_fuel_corrected_laptimes_scatterplot": {"enabled": False, "session": "R"},
     # Sprint Qualify
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }

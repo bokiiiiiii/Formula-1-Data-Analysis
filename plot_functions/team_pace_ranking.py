@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.3
+QUICKLAP_THRESHOLD = 1.05
 WIDTH = 0.5
 B_SPLINE_DEG = 2
 

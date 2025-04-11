@@ -6,7 +6,7 @@ import fastf1
 import fastf1.plotting
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.9
+QUICKLAP_THRESHOLD = 1.05
 MARKERS = [".", "*"]
 LINES = ["--", ":"]
 
@@ -217,7 +217,9 @@ def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
     driver_abbr = race.get_driver(driver)["Abbreviation"]
     driver_data["drivers_abbr"].append(driver_abbr)
     driver_name = fastf1.plotting.DRIVER_TRANSLATE[driver_abbr]
-    driver_color = fastf1.plotting.get_driver_style(driver_name, style='color', session=race)['color']
+    driver_color = fastf1.plotting.get_driver_style(
+        driver_name, style="color", session=race
+    )["color"]
 
     driver_data["legend_elements"].append(
         Line2D(
@@ -278,12 +280,12 @@ def driver_laptimes_scatterplot(
         )
 
         driver_abbr = race.get_driver(driver)["Abbreviation"]
-        driver_color = fastf1.plotting.get_driver_style(driver_abbr, style='color', session=race)["color"]
+        driver_color = fastf1.plotting.get_driver_style(
+            driver_abbr, style="color", session=race
+        )["color"]
 
         plot_driver_laps(ax, driver_laps, i, driver_color)
         plot_pit_lap_lines(ax, pit_lap_lines, driver_color)
-
-
 
     plot_annotations(ax, driver_data["pit_lap_array"], driver_laps)
     set_plot_labels(ax, race)

@@ -8,7 +8,7 @@ import fastf1.plotting
 
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.3
+QUICKLAP_THRESHOLD = 1.05
 BANDWIDTH = 0.17
 B_SPLINE_DEG = 2
 
@@ -46,13 +46,18 @@ def get_driver_colors(race):
     driver_colors = {}
 
     # Retrieve valid driver abbreviations from the session
-    valid_drivers = {race.get_driver(driver)["Abbreviation"]: driver for driver in race.drivers}
+    valid_drivers = {
+        race.get_driver(driver)["Abbreviation"]: driver for driver in race.drivers
+    }
 
     for driver_abbreviation in valid_drivers:
-        driver_style = fastf1.plotting.get_driver_style(driver_abbreviation, style='color', session=race)
-        driver_colors[driver_abbreviation] = driver_style['color']
+        driver_style = fastf1.plotting.get_driver_style(
+            driver_abbreviation, style="color", session=race
+        )
+        driver_colors[driver_abbreviation] = driver_style["color"]
 
     return driver_colors
+
 
 def plot_lap_time_distributions(driver_laps, finishing_order, driver_colors):
     """Plot the lap time distributions."""
