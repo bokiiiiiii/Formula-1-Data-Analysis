@@ -12,7 +12,7 @@ from plot_functions import *
 YEAR = 2025
 EVENT_NAME = "Japanese"
 SESSION_NAME = "R"
-
+ENABLE_ALL = False
 FUNC_PARAMS = {
     # Free Practice
     "plot_track_with_annotated_corners": {"enabled": False, "session": "FP1"},
@@ -28,9 +28,8 @@ FUNC_PARAMS = {
     # Sprint Qualify
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }
-
 FOLDER_PATH = "../Pic"
-BLOCK = all(not value["enabled"] for value in FUNC_PARAMS.values())
+BLOCK = not ENABLE_ALL and all(not value["enabled"] for value in FUNC_PARAMS.values())
 POST_IG_DICT = {}
 
 
@@ -95,7 +94,7 @@ def plot_image_and_post_ig(key: str, race) -> None:
         EVENT_NAME,
         SESSION_NAME,
         race,
-        FUNC_PARAMS[key]["enabled"],
+        ENABLE_ALL or FUNC_PARAMS[key]["enabled"],
     )
 
 
