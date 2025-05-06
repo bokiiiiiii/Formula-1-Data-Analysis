@@ -28,7 +28,10 @@ def get_point_finishers(race):
 
 def get_driver_laps(race, point_finishers):
     """Get the laps for the point finishers."""
-    return race.laps.pick_drivers(point_finishers).pick_quicklaps(QUICKLAP_THRESHOLD)
+    driver_laps = race.laps.pick_drivers(point_finishers).pick_quicklaps(
+        QUICKLAP_THRESHOLD
+    )
+    return driver_laps.dropna(subset=["Compound"])
 
 
 def get_driver_statistics(race, point_finishers):
@@ -80,17 +83,25 @@ def plot_lap_time_distributions(driver_laps, finishing_order, driver_colors):
 
 def plot_actual_laptimes(driver_laps, finishing_order):
     """Plot the actual lap times."""
-    sns.swarmplot(
-        data=driver_laps,
-        x="Driver",
-        y="LapTime(s)",
-        order=finishing_order,
-        hue="Compound",
-        palette=fastf1.plotting.COMPOUND_COLORS,
-        hue_order=["SOFT", "MEDIUM", "HARD", "INTERMEDIATE"],
-        linewidth=0,
-        size=4.5,
-    )
+    driver_laps = driver_laps.dropna(subset=["Compound"])
+
+
+def plot_actual_laptimes(driver_laps, finishing_order):
+    """Plot the actual lap times."""
+    driver_laps = driver_laps.dropna(subset=["Compound"])
+    driver_laps["Compound"] = driver_laps["Compound"].fillna("UNKNOWN")
+
+    for driver in finishing_order:
+        driver_data = driver_laps[driver_laps["Driver"] == driver]
+        for compound in ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "UNKNOWN"]:
+            compound_data = driver_data[driver_data["Compound"] == compound]
+            plt.plot(
+                [finishing_order.index(driver)] * len(compound_data),
+                compound_data["LapTime(s)"],
+                "o",
+                color=fastf1.plotting.COMPOUND_COLORS.get(compound, "gray"),
+                markersize=4.5,
+            )
 
 
 def plot_statistical_intervals(
@@ -261,10 +272,11 @@ def driver_laptimes_distribution(
     driver_colors = get_driver_colors(race)
 
     driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
-    driver_laps_statistics["LapTime(s)"] = driver_laps_statistics[
-        "LapTime"
-    ].dt.total_seconds()
+    driver_laps_statistics.loc[:, "LapTime(s)"] = (
+        driver_laps_statistics["LapTime"].dt.total_seconds().copy()
+    )
 
+    driver_laps = driver_laps.dropna(subset=["Compound"])
     fig, ax = plot_lap_time_distributions(driver_laps, finishing_order, driver_colors)
     plot_actual_laptimes(driver_laps, finishing_order)
 
