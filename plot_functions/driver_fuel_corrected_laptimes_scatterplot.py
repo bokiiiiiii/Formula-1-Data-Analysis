@@ -9,7 +9,7 @@ import pandas as pd
 from collections import OrderedDict
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.03
+QUICKLAP_THRESHOLD = 1.04
 CORRECTED_LAPTIME = 0.05
 MARKERS = [".", "*"]
 LINES = ["--", ":"]
@@ -31,10 +31,10 @@ def get_driver_laps(race, driver):
         race.laps.pick_drivers(driver).pick_quicklaps(QUICKLAP_THRESHOLD).copy()
     )
     driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
-    driver_laps["FuelCorrectedLapTime(s)"] = (
-        driver_laps["LapTime(s)"] + CORRECTED_LAPTIME * driver_laps["LapNumber"]
-    )
     driver_laps["StintLapNumber"] = driver_laps.groupby("Stint").cumcount() + 1
+    driver_laps["FuelCorrectedLapTime(s)"] = (
+        driver_laps["LapTime(s)"] + CORRECTED_LAPTIME * driver_laps["StintLapNumber"]
+    )
     return driver_laps
 
 
@@ -46,13 +46,16 @@ def get_stints_laps(race):
 
 
 def plot_driver_laps(ax, driver_laps, driver_index, driver_color):
+    driver_laps = driver_laps.copy()
+    driver_laps["Compound"] = driver_laps["Compound"].fillna("UNKNOWN")
     sns.scatterplot(
         data=driver_laps,
         x="StintLapNumber",
         y="FuelCorrectedLapTime(s)",
         ax=ax,
         hue="Compound",
-        palette=fastf1.plotting.COMPOUND_COLORS,
+        palette={**fastf1.plotting.COMPOUND_COLORS, "UNKNOWN": "grey"},
+        hue_order=["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "UNKNOWN"],
         marker=MARKERS[driver_index],
         s=80,
         linewidth=0,
@@ -64,6 +67,10 @@ def plot_stint_trendlines(ax, driver_laps, driver_color, driver_index, lines):
     compound_groups = driver_laps.groupby("Compound")
 
     for compound, group in compound_groups:
+        group = group.dropna(subset=["StintLapNumber", "FuelCorrectedLapTime(s)"])
+        if group.empty:
+            continue
+
         X = group["StintLapNumber"].values.reshape(-1, 1)
         Y = group["FuelCorrectedLapTime(s)"].values.reshape(-1, 1)
 
@@ -195,6 +202,7 @@ def initialize_driver_data():
 
 def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
     driver_laps = get_driver_laps(race, driver).reset_index()
+    driver_laps.loc[:, "LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
     driver_abbr = race.get_driver(driver)["Abbreviation"]
     driver_data["drivers_abbr"].append(driver_abbr)
     driver_name = fastf1.plotting.DRIVER_TRANSLATE[driver_abbr]

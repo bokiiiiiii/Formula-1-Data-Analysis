@@ -6,7 +6,7 @@ import fastf1
 import fastf1.plotting
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.05
+QUICKLAP_THRESHOLD = 1.04
 MARKERS = [".", "*"]
 LINES = ["--", ":"]
 
@@ -25,8 +25,35 @@ def get_podium_finishers(race):
 
 
 def get_driver_laps(race, driver):
-    """Get the laps for a driver."""
-    return race.laps.pick_drivers(driver).pick_quicklaps(QUICKLAP_THRESHOLD)
+    """Get the laps for a driver, with standardized Compound names."""
+    laps_orig = race.laps.pick_drivers(driver).pick_quicklaps(QUICKLAP_THRESHOLD)
+    laps = laps_orig.copy()
+
+    if "LapTime(s)" not in laps.columns:
+        laps.loc[:, "LapTime(s)"] = laps["LapTime"].dt.total_seconds()
+
+    if "Compound" in laps.columns:
+
+        laps.loc[:, "Compound"] = laps["Compound"].fillna("TEMP_NAN_FOR_UNKNOWN")
+        laps.loc[:, "Compound"] = laps["Compound"].astype(str)
+
+        replace_map = {
+            "UNKOWN": "UNKNOWN",
+            "TEMP_NAN_FOR_UNKNOWN": "UNKNOWN",
+            "nan": "UNKNOWN",
+            "None": "UNKNOWN",
+            "": "UNKNOWN",
+        }
+        laps.loc[:, "Compound"] = laps["Compound"].replace(replace_map)
+
+        plot_handled_compounds = ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE"]
+        compounds_to_keep_as_is = plot_handled_compounds + ["UNKNOWN"]
+        mask_to_change_to_unknown = ~laps["Compound"].isin(compounds_to_keep_as_is)
+        laps.loc[mask_to_change_to_unknown, "Compound"] = "UNKNOWN"
+    else:
+        laps.loc[:, "Compound"] = "UNKNOWN"
+
+    return laps
 
 
 def get_stints_laps(race):
@@ -45,7 +72,8 @@ def plot_driver_laps(ax, driver_laps, driver_index, driver_color):
         y="LapTime(s)",
         ax=ax,
         hue="Compound",
-        palette=fastf1.plotting.COMPOUND_COLORS,
+        palette={**fastf1.plotting.COMPOUND_COLORS, "UNKNOWN": "grey"},
+        hue_order=["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "UNKNOWN"],
         marker=MARKERS[driver_index],
         s=80,
         linewidth=0,
@@ -63,6 +91,8 @@ def plot_stint_trendlines(ax, stint_laps, driver_color, driver_index, lines):
     slope_str_array = []
     for stint in stint_laps["Stint"].unique():
         stint_data = stint_laps[stint_laps["Stint"] == stint]
+        if stint_data.empty:
+            continue
         tire_type = stint_data["Compound"].iloc[0]
 
         X = stint_data["LapNumber"].values.reshape(-1, 1)
@@ -117,11 +147,14 @@ def plot_annotations(ax, pit_lap_array, driver_laps):
         ax.axvspan(pit_lap - 0.5, pit_lap + 0.5, color="grey", alpha=0.3)
 
 
-def set_plot_labels(ax, race):
-    """Set plot labels."""
+def set_plot_labels(ax, race, min_time=None, max_time=None):
+    """Set plot labels and axis limits."""
     ax.set_xlabel("Lap Number", fontweight="bold", fontsize=14)
     ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
-    ax.set_xlim(1, race.laps["LapNumber"].max())
+    ax.set_xlim(0.5, race.laps["LapNumber"].max() + 0.5)
+    if min_time is not None and max_time is not None:
+        padding = (max_time - min_time) * 0.05
+        ax.set_ylim(min_time - padding, max_time + padding)
 
 
 def add_plot_titles(fig, ax, year, event_name, drivers_abbr):
@@ -209,11 +242,11 @@ def initialize_driver_data():
     }
 
 
-def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
+def process_driver_data(
+    ax, race, stints, driver, driver_index, driver_data, driver_laps
+):
     """Process data for a single driver."""
-    driver_laps = get_driver_laps(race, driver)
-    driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
-    driver_laps = driver_laps.reset_index()
+    driver_laps = driver_laps.copy().reset_index()
     driver_abbr = race.get_driver(driver)["Abbreviation"]
     driver_data["drivers_abbr"].append(driver_abbr)
     driver_name = fastf1.plotting.DRIVER_TRANSLATE[driver_abbr]
@@ -235,30 +268,41 @@ def process_driver_data(ax, race, stints, driver, driver_index, driver_data):
     )
 
     stints_stints = stints.loc[stints["Driver"] == driver_abbr]
-    pit_lap_lines = []
-    pit_lap_caption_array = []
-    pit_lap = 0
+
+    all_stint_end_laps_for_driver = []
+    current_pit_lap = 0
     for idx, row in stints_stints.iterrows():
-        pit_lap += row["LapNumber"]
-        if pit_lap not in driver_data["pit_lap_array"]:
-            driver_data["pit_lap_array"].append(pit_lap)
-        pit_lap_lines.append(pit_lap + 0.25 * driver_index)
-        pit_lap_caption_array.append(f"{pit_lap}")
-    if driver_data["pit_lap_array"]:
-        driver_data["pit_lap_array"].pop()
-        pit_lap_lines.pop()
+        current_pit_lap += row["LapNumber"]
+        all_stint_end_laps_for_driver.append(current_pit_lap)
+
+    pit_lap_lines = []
+    actual_pit_stop_laps = []
+    if len(all_stint_end_laps_for_driver) > 0:
+        actual_pit_stop_laps = all_stint_end_laps_for_driver[:-1]
+        for p_lap in actual_pit_stop_laps:
+            pit_lap_lines.append(p_lap + 0.25 * driver_index)
+            if p_lap not in driver_data["pit_lap_array"]:
+                driver_data["pit_lap_array"].append(p_lap)
+    elif stints_stints.empty:
+        pass
+    else:
+        pass
+
+    pit_lap_caption_array = [f"{lap}" for lap in all_stint_end_laps_for_driver]
+    driver_data["pit_lap_caption_arrays"].append(pit_lap_caption_array)
 
     slope_str_array = plot_stint_trendlines(
         ax, driver_laps, driver_color, driver_index, LINES
     )
     driver_data["slope_str_arrays"].append(slope_str_array)
-    driver_data["tire_type_arrays"].append(
-        [
-            driver_laps[driver_laps["Stint"] == stint]["Compound"].iloc[0]
-            for stint in driver_laps["Stint"].unique()
-        ]
-    )
-    driver_data["pit_lap_caption_arrays"].append(pit_lap_caption_array)
+    tire_type_array = []
+    for stint_num in driver_laps["Stint"].unique():
+        stint_data = driver_laps[driver_laps["Stint"] == stint_num]
+        if not stint_data.empty:
+            tire_type_array.append(stint_data["Compound"].iloc[0])
+        else:
+            tire_type_array.append("UNKNOWN")
+    driver_data["tire_type_arrays"].append(tire_type_array)
 
     return driver_laps, pit_lap_lines
 
@@ -271,12 +315,25 @@ def driver_laptimes_scatterplot(
     podium_finishers = get_podium_finishers(race)
     stints = get_stints_laps(race)
 
+    all_driver_laps_data = {}
+    all_times = []
+    for driver in podium_finishers:
+        laps_data = get_driver_laps(race, driver)
+        all_driver_laps_data[driver] = laps_data
+        all_times.extend(laps_data["LapTime(s)"].dropna().tolist())
+
+    min_lap_time = min(all_times) if all_times else 0
+    max_lap_time = max(all_times) if all_times else 1
+
     fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
     driver_data = initialize_driver_data()
+    last_driver_laps = None
 
     for i, driver in enumerate(podium_finishers):
-        driver_laps, pit_lap_lines = process_driver_data(
-            ax, race, stints, driver, i, driver_data
+        current_driver_laps = all_driver_laps_data[driver]
+
+        _, pit_lap_lines = process_driver_data(
+            ax, race, stints, driver, i, driver_data, current_driver_laps
         )
 
         driver_abbr = race.get_driver(driver)["Abbreviation"]
@@ -284,11 +341,14 @@ def driver_laptimes_scatterplot(
             driver_abbr, style="color", session=race
         )["color"]
 
-        plot_driver_laps(ax, driver_laps, i, driver_color)
+        plot_driver_laps(ax, current_driver_laps, i, driver_color)
         plot_pit_lap_lines(ax, pit_lap_lines, driver_color)
+        last_driver_laps = current_driver_laps
 
-    plot_annotations(ax, driver_data["pit_lap_array"], driver_laps)
-    set_plot_labels(ax, race)
+    if last_driver_laps is not None:
+        plot_annotations(ax, driver_data["pit_lap_array"], last_driver_laps)
+
+    set_plot_labels(ax, race, min_lap_time, max_lap_time)
     add_plot_titles(fig, ax, year, event_name, driver_data["drivers_abbr"])
 
     sns.despine(left=True, bottom=True)

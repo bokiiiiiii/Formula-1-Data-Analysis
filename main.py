@@ -10,7 +10,7 @@ from plot_functions import *
 
 # Parameters
 YEAR = 2025
-EVENT_NAME = "Japanese"
+EVENT_NAME = "Miami"
 SESSION_NAME = "R"
 ENABLE_ALL = False
 FUNC_PARAMS = {
