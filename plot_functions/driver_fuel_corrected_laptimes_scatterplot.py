@@ -9,8 +9,8 @@ import pandas as pd
 from collections import OrderedDict
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.04
-CORRECTED_LAPTIME = 0.05
+QUICKLAP_THRESHOLD = 1.05
+CORRECTED_LAPTIME = 0.06
 MARKERS = [".", "*"]
 LINES = ["--", ":"]
 
@@ -157,7 +157,9 @@ def add_plot_titles(fig, ax, year, event_name, drivers_abbr):
 
 
 def save_plot(fig, year, event_name):
-    suptitle = f"{year} {event_name} Grand Prix Driver Lap Time Variation"
+    suptitle = (
+        f"{year} {event_name} Grand Prix Driver Fuel Corrected Lap Time Variation"
+    )
     filename = f"../pic/{suptitle.replace(' ', '_')}.png"
     plt.savefig(filename)
     return filename

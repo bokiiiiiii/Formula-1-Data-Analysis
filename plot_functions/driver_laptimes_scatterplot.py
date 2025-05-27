@@ -6,7 +6,7 @@ import fastf1
 import fastf1.plotting
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.04
+QUICKLAP_THRESHOLD = 1.05
 MARKERS = [".", "*"]
 LINES = ["--", ":"]
 
