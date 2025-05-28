@@ -162,8 +162,10 @@ def annotated_qualifying_flying_lap(
         )
 
     def save_plot(fig, filename):
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
-        plt.savefig(filename)
+        # plt.tight_layout(rect=[0, 0, 1, 0.95]) # Commented out as it might interfere
+        fig.savefig(
+            filename, dpi=DPI, bbox_inches=None
+        )  # Use fig object and pass DPI, bbox_inches
 
     def generate_caption():
         titles_str = (
@@ -251,12 +253,24 @@ def annotated_qualifying_flying_lap(
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
     )
+
+    # Plotting constants for consistent sizing
+    DPI = 125
+    FIG_SIZE = (1080 / DPI, 1350 / DPI)  # Target 1080x1350 pixels
+
     race.load()
     quali_results = race.results
     front_row = quali_results[:2]
 
     with plt.style.context(["science", "bright"]):
-        fig, ax = plt.subplots(figsize=(8.64, 10.8), dpi=600)
+        # Attempt to override scienceplots' potential dimension-altering rcParams
+        plt.rcParams["figure.dpi"] = DPI
+        plt.rcParams["savefig.dpi"] = DPI
+        plt.rcParams["figure.autolayout"] = False
+        plt.rcParams["figure.constrained_layout.use"] = False
+        plt.rcParams["savefig.bbox"] = None
+
+        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
         fig.patch.set_facecolor("white")
         ax.set_facecolor("white")
         v_min, v_max, d_max = float("inf"), float("-inf"), float("-inf")

@@ -230,11 +230,13 @@ def add_scale_styled(ax_param):  # x_max, y_min removed, calculate from current 
     )
 
 
-def save_plot_and_get_filename(fig_param, suptitle_text_param):  # Renamed
+def save_plot_and_get_filename(fig_param, suptitle_text_param, dpi_val):  # Renamed
     """Save the plot to a file and return filename."""
     filename = f"../pic/{suptitle_text_param.replace(' ', '_').replace(':', '')}.png"
-    plt.tight_layout(rect=[0, 0, 1, 0.88])  # Adjust rect for titles
-    plt.savefig(filename)
+    # plt.tight_layout(rect=[0, 0, 1, 0.88])  # Adjust rect for titles
+    fig_param.savefig(
+        filename, dpi=dpi_val, bbox_inches=None
+    )  # Explicitly set bbox_inches
     return filename
 
 
@@ -265,8 +267,8 @@ def plot_track_with_annotated_corners(
     global suptitle_text_global  # Ensure it's updated
 
     # Plotting constants
-    FIG_SIZE = (8.64, 10.8)
-    DPI = 600
+    DPI = 125
+    FIG_SIZE = (1080 / DPI, 1350 / DPI)  # This will now be (1.8, 2.25)
     PRIMARY_TEXT_COLOR = "black"
     BACKGROUND_COLOR = "white"
     SUPTITLE_FONTSIZE = 18
@@ -326,7 +328,19 @@ def plot_track_with_annotated_corners(
     circuit_info_obj = race.get_circuit_info()
 
     with plt.style.context(["science", "bright"]):
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
+        # Attempt to override scienceplots' potential dimension-altering rcParams
+        # Force DPI settings
+        plt.rcParams["figure.dpi"] = DPI
+        plt.rcParams["savefig.dpi"] = DPI
+
+        # Disable layout managers that might resize the figure
+        plt.rcParams["figure.autolayout"] = False
+        plt.rcParams["figure.constrained_layout.use"] = False
+
+        # Ensure savefig does not use 'tight' bounding box from rcParams
+        plt.rcParams["savefig.bbox"] = None
+
+        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)  # dpi here should be honored
         fig.patch.set_facecolor(BACKGROUND_COLOR)
         ax.set_facecolor(BACKGROUND_COLOR)
 
@@ -387,7 +401,7 @@ def plot_track_with_annotated_corners(
         suptitle_for_filename = f"{year} {event_name} Grand Prix Circuit"
 
         filename = save_plot_and_get_filename(
-            fig, suptitle_for_filename
+            fig, suptitle_for_filename, DPI
         )  # Use specific suptitle for filename
         plt.close(fig)
 
