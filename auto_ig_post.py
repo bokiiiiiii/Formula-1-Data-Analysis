@@ -45,6 +45,11 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         page.set_input_files('input[type="file"]', image_path)
         time.sleep(3)
 
+        page.locator("button").filter(has_text="選擇「裁切」").click()
+        page.get_by_role("button", name=":5 「裁切成直向」圖示").click()
+        time.sleep(3)
+        # page.locator("div").filter(has_text=re.compile(r"^下一步$")).nth(1).click()
+
         page.get_by_role("button", name="下一步").click()
         page.get_by_role("button", name="下一步").click()
         time.sleep(3)
