@@ -1,14 +1,23 @@
 import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.collections import PolyCollection
 from sklearn.linear_model import LinearRegression
 import fastf1
 import fastf1.plotting
+import pandas as pd
+import scienceplots
+import textwrap
+import numpy as np
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.05
+QUICKLAP_THRESHOLD = 1.07
 MARKERS = [".", "*"]
-LINES = ["--", ":"]
+LINES = ["-", "--"]
+
+# Global variables for caption generation consistency
+suptitle_text_global = ""
+subtitle_lower_text_global = ""
 
 
 def load_race_data(race):
@@ -19,86 +28,158 @@ def load_race_data(race):
         raise RuntimeError(f"Error loading race data: {e}")
 
 
-def get_podium_finishers(race):
-    """Get the top 2 finishers."""
-    return race.drivers[:2]
+def get_podium_finishers_abbr(race):
+    """Get the top 2 finishers' abbreviations."""
+    results = race.results
+    if results is None or results.empty or len(results) < 2:
+        print("Warning: Not enough results to pick top 2 finishers.")
+        return list(results["Abbreviation"][: len(results)])
+    return list(results["Abbreviation"][:2])
 
 
-def get_driver_laps(race, driver):
+def get_driver_laps_cleaned(race, driver_abbr):
     """Get the laps for a driver, with standardized Compound names."""
-    laps_orig = race.laps.pick_drivers(driver).pick_quicklaps(QUICKLAP_THRESHOLD)
+    try:
+        driver_number = race.get_driver(driver_abbr)["DriverNumber"]
+    except Exception as e:
+        print(f"Could not get driver number for {driver_abbr}: {e}")
+        return pd.DataFrame()
+
+    laps_orig = race.laps.pick_drivers(driver_number).pick_quicklaps(QUICKLAP_THRESHOLD)
     laps = laps_orig.copy()
+
+    if laps.empty:
+        return pd.DataFrame()
 
     if "LapTime(s)" not in laps.columns:
         laps.loc[:, "LapTime(s)"] = laps["LapTime"].dt.total_seconds()
 
     if "Compound" in laps.columns:
-
-        laps.loc[:, "Compound"] = laps["Compound"].fillna("TEMP_NAN_FOR_UNKNOWN")
-        laps.loc[:, "Compound"] = laps["Compound"].astype(str)
-
-        replace_map = {
-            "UNKOWN": "UNKNOWN",
-            "TEMP_NAN_FOR_UNKNOWN": "UNKNOWN",
-            "nan": "UNKNOWN",
-            "None": "UNKNOWN",
-            "": "UNKNOWN",
-        }
-        laps.loc[:, "Compound"] = laps["Compound"].replace(replace_map)
-
-        plot_handled_compounds = ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE"]
-        compounds_to_keep_as_is = plot_handled_compounds + ["UNKNOWN"]
-        mask_to_change_to_unknown = ~laps["Compound"].isin(compounds_to_keep_as_is)
-        laps.loc[mask_to_change_to_unknown, "Compound"] = "UNKNOWN"
+        laps.loc[:, "Compound"] = laps["Compound"].fillna("UNKNOWN")
+        laps.loc[:, "Compound"] = (
+            laps["Compound"]
+            .astype(str)
+            .replace(
+                {
+                    "UNKOWN": "UNKNOWN",
+                    "nan": "UNKNOWN",
+                    "None": "UNKNOWN",
+                    "": "UNKNOWN",
+                }
+            )
+        )
+        valid_compounds = ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET", "UNKNOWN"]
+        laps.loc[~laps["Compound"].isin(valid_compounds), "Compound"] = "UNKNOWN"
     else:
         laps.loc[:, "Compound"] = "UNKNOWN"
 
+    if "StintLapNumber" not in laps.columns:
+        laps["StintLapNumber"] = (
+            laps.groupby("Stint")["LapNumber"]
+            .rank(method="first", ascending=True)
+            .astype(int)
+        )
     return laps
 
 
-def get_stints_laps(race):
-    """Get the stints laps data."""
-    stints_laps = race.laps
-    stints = stints_laps[["Driver", "Stint", "LapNumber"]]
-    stints = stints.groupby(["Driver", "Stint"]).count().reset_index()
-    return stints
+def get_stints_info_for_driver(race, driver_abbr):
+    """Get the stints data for a specific driver."""
+    try:
+        driver_number = race.get_driver(driver_abbr)["DriverNumber"]
+    except Exception:
+        return pd.DataFrame()
+
+    stints_df = race.laps.pick_drivers(driver_number)[
+        ["Stint", "LapNumber", "Compound"]
+    ]
+    stint_summary = (
+        stints_df.groupby("Stint")
+        .agg(
+            StintEndLap=("LapNumber", "max"),
+            Compound=("Compound", "first"),
+        )
+        .reset_index()
+    )
+    return stint_summary
 
 
-def plot_driver_laps(ax, driver_laps, driver_index, driver_color):
-    """Plot the driver laps."""
+def plot_driver_laps_styled(
+    ax,
+    driver_laps_df,
+    driver_idx,
+    driver_abbr_label,
+    assigned_driver_color,
+):
+    """Plot the driver laps with scienceplots style."""
     sns.scatterplot(
-        data=driver_laps,
+        data=driver_laps_df,
         x="LapNumber",
         y="LapTime(s)",
         ax=ax,
         hue="Compound",
-        palette={**fastf1.plotting.COMPOUND_COLORS, "UNKNOWN": "grey"},
-        hue_order=["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "UNKNOWN"],
-        marker=MARKERS[driver_index],
-        s=80,
-        linewidth=0,
+        palette={
+            **fastf1.plotting.COMPOUND_COLORS,
+            "UNKNOWN": "black",
+        },
+        hue_order=[
+            "SOFT",
+            "MEDIUM",
+            "HARD",
+            "INTERMEDIATE",
+            "WET",
+            "UNKNOWN",
+        ],
+        marker=MARKERS[driver_idx % len(MARKERS)],
+        s=60,
+        linewidth=0.25,
+        edgecolor=assigned_driver_color,
     )
 
 
-def plot_pit_lap_lines(ax, pit_lap_lines, driver_color):
-    """Plot the pit lap lines."""
-    for pit_lap_line in pit_lap_lines:
-        ax.axvline(x=pit_lap_line, color=driver_color, linestyle="-", linewidth=1.5)
+def plot_pit_lap_lines_styled(ax, pit_lap_numbers, line_color, y_pos_for_text):
+    """Plot vertical lines for pit laps and "Pit" text with styled color."""
+    for pit_lap in pit_lap_numbers:
+        ax.axvline(
+            x=pit_lap, color=line_color, linestyle="--", linewidth=1.2, alpha=0.7
+        )
+        if y_pos_for_text is not None:
+            ax.text(
+                pit_lap,
+                y_pos_for_text,
+                "Pit",
+                rotation=90,
+                color=line_color,
+                fontsize=9,
+                va="top",
+                ha="center",
+                bbox=dict(facecolor="white", alpha=0.8, edgecolor="none", pad=0.1),
+            )
 
 
-def plot_stint_trendlines(ax, stint_laps, driver_color, driver_index, lines):
-    """Plot the stint trendlines."""
-    slope_str_array = []
-    for stint in stint_laps["Stint"].unique():
-        stint_data = stint_laps[stint_laps["Stint"] == stint]
-        if stint_data.empty:
+def plot_stint_trendlines_styled(
+    ax,
+    driver_laps_df,
+    assigned_color,
+    driver_idx,
+    line_styles,
+    global_y_anchor_top,
+    global_plot_range_y,
+):
+    """Plot stint trendlines with styled color and text."""
+    slope_str_list = []
+    for stint_num, stint_data in driver_laps_df.groupby("Stint"):
+        if len(stint_data) < 2:
             continue
-        tire_type = stint_data["Compound"].iloc[0]
 
-        X = stint_data["LapNumber"].values.reshape(-1, 1)
-        Y = stint_data["LapTime(s)"].values.reshape(-1, 1)
-        reg = LinearRegression().fit(X, Y)
-        slope = reg.coef_[0][0]
+        compound_for_stint = stint_data["Compound"].iloc[0]
+        if compound_for_stint == "HARD":
+            reg_color = "grey"
+        else:
+            reg_color = fastf1.plotting.COMPOUND_COLORS.get(
+                compound_for_stint, assigned_color
+            )
+
+        collections_before = list(ax.collections)
 
         sns.regplot(
             x="LapNumber",
@@ -106,270 +187,452 @@ def plot_stint_trendlines(ax, stint_laps, driver_color, driver_index, lines):
             data=stint_data,
             ax=ax,
             scatter=False,
-            color=driver_color,
-            line_kws={"linestyle": lines[driver_index], "linewidth": 1.4},
+            color=reg_color,
+            line_kws={
+                "linestyle": line_styles[driver_idx % len(line_styles)],
+                "linewidth": 0.8,
+                "alpha": 0.7,
+            },
         )
 
-        midpoint = (
-            (X.min() + X.max()) / 2 - 1
-            if driver_index == 0
-            else (X.min() + X.max()) / 2 + 1
+        newly_added_collections = [
+            c for c in ax.collections if c not in collections_before
+        ]
+        for collection in newly_added_collections:
+            if isinstance(collection, PolyCollection):
+                collection.set_alpha(0.1)
+
+        X_reg = stint_data["LapNumber"].values.reshape(-1, 1)
+        Y_reg = stint_data["LapTime(s)"].values.reshape(-1, 1)
+        try:
+            reg_model = LinearRegression().fit(X_reg, Y_reg)
+            slope_val = reg_model.coef_[0][0]
+        except ValueError:
+            slope_val = np.nan
+
+        mid_lap = stint_data["LapNumber"].mean()
+        y_pos_for_slope_text = (
+            global_y_anchor_top - (0.018 + driver_idx * 0.020) * global_plot_range_y
         )
-        text_y_position = reg.predict([[midpoint]])[0][0]
-        slope_str = f"+{slope:.3f} s/lap" if slope > 0 else f"{slope:.3f} s/lap"
-        slope_str_array.append(slope_str.replace(" s/lap", ""))
+
+        slope_text_value = f"{slope_val:+.3f} s/lap"
+        slope_str_list.append(f"{slope_val:+.3f}")
+
+        tire_color = fastf1.plotting.COMPOUND_COLORS.get(compound_for_stint, "grey")
+        driver_marker_shape = MARKERS[driver_idx % len(MARKERS)]
+        marker_center_x = mid_lap - 2.0
+        text_start_x = mid_lap - 1.3
+
+        ax.plot(
+            marker_center_x,
+            y_pos_for_slope_text + 0.008,
+            marker=driver_marker_shape,
+            markersize=5,
+            color=tire_color,
+            markeredgecolor=assigned_color,
+            markeredgewidth=0.5,
+            linestyle="None",
+            transform=ax.transData,
+            clip_on=False,
+        )
+
         ax.text(
-            midpoint,
-            text_y_position,
-            slope_str,
-            color=driver_color,
-            fontsize=10,
-            fontweight="bold",
-            verticalalignment="bottom",
+            text_start_x,
+            y_pos_for_slope_text,
+            slope_text_value,
+            color=assigned_color,
+            fontsize=9,
+            ha="left",
+            va="center",
+            bbox=dict(
+                facecolor="white",
+                alpha=0.4,
+                edgecolor="none",
+                pad=0.1,
+            ),
         )
-    return slope_str_array
+    return slope_str_list
 
 
-def plot_annotations(ax, pit_lap_array, driver_laps):
-    """Plot pit lap annotations."""
-    for pit_lap in pit_lap_array:
-        ax.text(
-            pit_lap,
-            driver_laps["LapTime(s)"].max() - 0.2,
-            "Pit Lap",
-            rotation=90,
-            color="grey",
-            fontsize=10,
-            fontweight="bold",
-            verticalalignment="top",
-            horizontalalignment="right",
-        )
-        ax.axvspan(pit_lap - 0.5, pit_lap + 0.5, color="grey", alpha=0.3)
+def set_plot_labels_styled(ax, race_obj, min_time_val, max_time_val):
+    """Set plot labels and axis limits with new style."""
+    ax.set_xlabel("Lap Number", fontsize=14, color="black")
+    ax.set_ylabel("Lap Time (s)", fontsize=14, color="black")
+    ax.tick_params(axis="x", colors="black")
+    ax.tick_params(axis="y", colors="black")
+
+    max_lap_num = race_obj.laps["LapNumber"].max()
+    ax.set_xlim(0.5, max_lap_num + 0.5 if not pd.isna(max_lap_num) else 50)
+
+    if (
+        min_time_val is not None
+        and max_time_val is not None
+        and not (pd.isna(min_time_val) or pd.isna(max_time_val))
+    ):
+        padding = (max_time_val - min_time_val) * 0.05
+        ax.set_ylim(min_time_val - padding, max_time_val + padding + 0.5)
 
 
-def set_plot_labels(ax, race, min_time=None, max_time=None):
-    """Set plot labels and axis limits."""
-    ax.set_xlabel("Lap Number", fontweight="bold", fontsize=14)
-    ax.set_ylabel("Lap Time (s)", fontweight="bold", fontsize=14)
-    ax.set_xlim(0.5, race.laps["LapNumber"].max() + 0.5)
-    if min_time is not None and max_time is not None:
-        padding = (max_time - min_time) * 0.05
-        ax.set_ylim(min_time - padding, max_time + padding)
+def add_plot_titles_styled(fig, year_val, event_name_val, drivers_abbr_list):
+    """Add plot titles and subtitles with new style."""
+    global suptitle_text_global, subtitle_lower_text_global
+    suptitle_text_global = f"{year_val} {event_name_val} Grand Prix: Lap Time Variation"
+    plt.suptitle(suptitle_text_global, fontsize=18, color="black")
 
-
-def add_plot_titles(fig, ax, year, event_name, drivers_abbr):
-    """Add plot titles and subtitles."""
-    suptitle = f"{year} {event_name} Grand Prix Driver Lap Time Variation"
-    plt.suptitle(suptitle, fontweight="bold", fontsize=16)
-
-    subtitle_upper = "with Lap Time Variation Rate and Pit Lap Annotated"
-    subtitle_lower = f"{drivers_abbr[0]} vs {drivers_abbr[1]}"
-    bg_color = ax.get_facecolor()
-    plt.figtext(
-        0.5,
-        0.935,
-        subtitle_upper,
-        ha="center",
-        fontsize=14,
-        bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
+    subtitle_upper = "with Trendlines per Stint and Pit Lap Annotations"
+    subtitle_lower_text_global = (
+        f"{drivers_abbr_list[0]} vs {drivers_abbr_list[1]}"
+        if len(drivers_abbr_list) >= 2
+        else drivers_abbr_list[0]
     )
+
+    plt.figtext(0.5, 0.94, subtitle_upper, ha="center", fontsize=15, color="black")
     plt.figtext(
-        0.5,
-        0.912,
-        subtitle_lower,
-        ha="center",
-        fontsize=12,
-        fontweight="bold",
-        bbox=dict(facecolor=bg_color, alpha=0.5, edgecolor="none"),
+        0.5, 0.915, subtitle_lower_text_global, ha="center", fontsize=13, color="black"
     )
 
 
-def save_plot(fig, year, event_name):
-    """Save the plot to a file."""
-    suptitle = f"{year} {event_name} Grand Prix Driver Lap Time Variation"
-    filename = f"../pic/{suptitle.replace(' ', '_')}.png"
-    plt.savefig(filename)
+def save_plot_and_get_filename(fig, suptitle_text_param, dpi_val):
+    """Save the plot to a file and return filename."""
+    filename = f"../pic/{suptitle_text_param.replace(' ', '_').replace(':', '')}.png"
+    fig.savefig(filename, dpi=dpi_val, bbox_inches=None)
     return filename
 
 
-def create_caption(
-    year,
-    event_name,
-    drivers_abbr,
-    pit_lap_caption_arrays,
-    tire_type_arrays,
-    slope_str_arrays,
-):
-    """Create a caption for the plot."""
-    titles_str = f"{event_name} Grand Prix"
-    caption = f"""\
-🏎️
-« {year} {event_name} Grand Prix »
+def create_styled_caption(year_val, event_name_val, stored_data_dict):
+    """Create a styled caption for the plot."""
+    base_title_for_caption = suptitle_text_global.replace(f"{year_val} ", "").replace(
+        " Grand Prix: ", " - "
+    )
 
-• {titles_str} {drivers_abbr[0]} vs {drivers_abbr[1]}
+    caption_parts = [
+        f"🏎️",
+        f"« {year_val} {event_name_val} Grand Prix »",
+        f"",
+        f"• {base_title_for_caption}",
+        f"• Comparison: {subtitle_lower_text_global}",
+        f"",
+    ]
 
-‣ Pit Lap
-\t◦ {drivers_abbr[0]}
-\t1 → {' → '.join(pit_lap_caption_arrays[0])}
-\t◦ {drivers_abbr[1]}
-\t1 → {' → '.join(pit_lap_caption_arrays[1])}    
+    caption_parts.append("‣ Pit Laps (End of Stint):")
+    for i, driver_abbr in enumerate(stored_data_dict["drivers_abbr_list"]):
+        pit_laps_str = (
+            " → ".join(stored_data_dict["pit_lap_caption_arrays"][i])
+            if stored_data_dict["pit_lap_caption_arrays"][i]
+            else "N/A"
+        )
+        caption_parts.append(
+            f"\t◦ {driver_abbr}: {pit_laps_str if pit_laps_str else 'No recorded pit stops'}"
+        )
+    caption_parts.append("")
 
-‣ Compound
-\t◦ {drivers_abbr[0]}
-\t{' → '.join(tire_type_arrays[0])}
-\t◦ {drivers_abbr[1]}
-\t{' → '.join(tire_type_arrays[1])} 
-            
-‣ Lap Time Variation Rate (s/lap)
-\t◦ {drivers_abbr[0]}
-\t{' → '.join(slope_str_arrays[0])}
-\t◦ {drivers_abbr[1]}
-\t{' → '.join(slope_str_arrays[1])}
-    
-#F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-    return caption
+    caption_parts.append("‣ Tyre Compounds per Stint:")
+    for i, driver_abbr in enumerate(stored_data_dict["drivers_abbr_list"]):
+        compounds_str = (
+            " → ".join(stored_data_dict["tire_type_arrays"][i])
+            if stored_data_dict["tire_type_arrays"][i]
+            else "N/A"
+        )
+        caption_parts.append(f"\t◦ {driver_abbr}: {compounds_str}")
+    caption_parts.append("")
+
+    caption_parts.append("‣ Lap Time Variation Rate (s/lap per Stint):")
+    for i, driver_abbr in enumerate(stored_data_dict["drivers_abbr_list"]):
+        slopes_str = (
+            " → ".join(stored_data_dict["slope_str_arrays"][i])
+            if stored_data_dict["slope_str_arrays"][i]
+            else "N/A"
+        )
+        caption_parts.append(f"\t◦ {driver_abbr}: {slopes_str}")
+    caption_parts.append("")
+
+    caption_parts.append(f"#F1 #Formula1 #{event_name_val.replace(' ', '')}GP")
+    return textwrap.dedent("\n".join(caption_parts))
 
 
-def initialize_driver_data():
-    """Initialize the driver data dictionary."""
+def initialize_driver_data_storage():
+    """Initialize the dictionary to store data for each driver."""
     return {
-        "pit_lap_array": [],
+        "all_pit_lap_numbers": [],
         "legend_elements": [],
-        "drivers_abbr": [],
+        "drivers_abbr_list": [],
         "slope_str_arrays": [],
         "tire_type_arrays": [],
         "pit_lap_caption_arrays": [],
     }
 
 
-def process_driver_data(
-    ax, race, stints, driver, driver_index, driver_data, driver_laps
+def process_driver_data_single(
+    ax,
+    race_obj,
+    driver_abbr_val,
+    driver_idx,
+    stored_data_ref,
+    driver_laps_df,
+    assigned_driver_color,
+    line_styles_list,
+    global_y_anchor_top,
+    global_plot_range_y,
+    y_pos_for_pit_text,
 ):
-    """Process data for a single driver."""
-    driver_laps = driver_laps.copy().reset_index()
-    driver_abbr = race.get_driver(driver)["Abbreviation"]
-    driver_data["drivers_abbr"].append(driver_abbr)
-    driver_name = fastf1.plotting.DRIVER_TRANSLATE[driver_abbr]
-    driver_color = fastf1.plotting.get_driver_style(
-        driver_name, style="color", session=race
-    )["color"]
+    """Process and plot data for a single driver."""
+    if driver_laps_df.empty:
+        if driver_abbr_val not in stored_data_ref["drivers_abbr_list"]:
+            stored_data_ref["drivers_abbr_list"].append(driver_abbr_val)
+            for key in [
+                "slope_str_arrays",
+                "tire_type_arrays",
+                "pit_lap_caption_arrays",
+            ]:
+                stored_data_ref[key].append(["N/A"])
+        return
 
-    driver_data["legend_elements"].append(
+    if driver_abbr_val not in stored_data_ref["drivers_abbr_list"]:
+        stored_data_ref["drivers_abbr_list"].append(driver_abbr_val)
+
+    plot_driver_laps_styled(
+        ax, driver_laps_df, driver_idx, driver_abbr_val, assigned_driver_color
+    )
+
+    stints_summary = get_stints_info_for_driver(race_obj, driver_abbr_val)
+    driver_pit_laps = []
+    driver_compounds_per_stint = []
+    if not stints_summary.empty:
+        driver_pit_laps = list(stints_summary["StintEndLap"][:-1])
+        driver_compounds_per_stint = list(stints_summary["Compound"])
+
+    stored_data_ref["all_pit_lap_numbers"].extend(driver_pit_laps)
+    caption_pit_laps = (
+        [str(lap) for lap in stints_summary["StintEndLap"]]
+        if not stints_summary.empty
+        else ["N/A"]
+    )
+    stored_data_ref["pit_lap_caption_arrays"].append(caption_pit_laps)
+    stored_data_ref["tire_type_arrays"].append(
+        driver_compounds_per_stint if driver_compounds_per_stint else ["N/A"]
+    )
+
+    plot_pit_lap_lines_styled(
+        ax, driver_pit_laps, assigned_driver_color, y_pos_for_pit_text
+    )
+
+    slopes = plot_stint_trendlines_styled(
+        ax,
+        driver_laps_df,
+        assigned_driver_color,
+        driver_idx,
+        line_styles_list,
+        global_y_anchor_top,
+        global_plot_range_y,
+    )
+    stored_data_ref["slope_str_arrays"].append(slopes if slopes else ["N/A"])
+
+    stored_data_ref["legend_elements"].append(
         Line2D(
             [0],
             [0],
-            marker=MARKERS[driver_index],
-            color=driver_color,
-            markerfacecolor=driver_color,
-            label=driver_abbr,
-            markersize=10,
-            linestyle="",
+            marker=MARKERS[driver_idx % len(MARKERS)],
+            color=assigned_driver_color,
+            label=driver_abbr_val,
+            markersize=8,
+            linestyle="None",
         )
     )
-
-    stints_stints = stints.loc[stints["Driver"] == driver_abbr]
-
-    all_stint_end_laps_for_driver = []
-    current_pit_lap = 0
-    for idx, row in stints_stints.iterrows():
-        current_pit_lap += row["LapNumber"]
-        all_stint_end_laps_for_driver.append(current_pit_lap)
-
-    pit_lap_lines = []
-    actual_pit_stop_laps = []
-    if len(all_stint_end_laps_for_driver) > 0:
-        actual_pit_stop_laps = all_stint_end_laps_for_driver[:-1]
-        for p_lap in actual_pit_stop_laps:
-            pit_lap_lines.append(p_lap + 0.25 * driver_index)
-            if p_lap not in driver_data["pit_lap_array"]:
-                driver_data["pit_lap_array"].append(p_lap)
-    elif stints_stints.empty:
-        pass
-    else:
-        pass
-
-    pit_lap_caption_array = [f"{lap}" for lap in all_stint_end_laps_for_driver]
-    driver_data["pit_lap_caption_arrays"].append(pit_lap_caption_array)
-
-    slope_str_array = plot_stint_trendlines(
-        ax, driver_laps, driver_color, driver_index, LINES
-    )
-    driver_data["slope_str_arrays"].append(slope_str_array)
-    tire_type_array = []
-    for stint_num in driver_laps["Stint"].unique():
-        stint_data = driver_laps[driver_laps["Stint"] == stint_num]
-        if not stint_data.empty:
-            tire_type_array.append(stint_data["Compound"].iloc[0])
-        else:
-            tire_type_array.append("UNKNOWN")
-    driver_data["tire_type_arrays"].append(tire_type_array)
-
-    return driver_laps, pit_lap_lines
 
 
 def driver_laptimes_scatterplot(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    """Plot driver lap times variation with pit lap annotations."""
+    """Plot driver lap times variation with pit lap annotations, styled."""
+    global suptitle_text_global, subtitle_lower_text_global
+
+    fastf1.plotting.setup_mpl(
+        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
+    )
+
+    DPI = 125
+    FIG_SIZE = (1080 / DPI, 1350 / DPI)
+
     load_race_data(race)
-    podium_finishers = get_podium_finishers(race)
-    stints = get_stints_laps(race)
 
-    all_driver_laps_data = {}
-    all_times = []
-    for driver in podium_finishers:
-        laps_data = get_driver_laps(race, driver)
-        all_driver_laps_data[driver] = laps_data
-        all_times.extend(laps_data["LapTime(s)"].dropna().tolist())
+    podium_finishers_abbrs = get_podium_finishers_abbr(race)
+    if not podium_finishers_abbrs:
+        print(f"Not enough podium finishers for {year} {event_name}. Skipping.")
+        return {"filename": None, "caption": "Not enough data for plot.", "post": False}
 
-    min_lap_time = min(all_times) if all_times else 0
-    max_lap_time = max(all_times) if all_times else 1
+    driver_laps_map = {
+        abbr: get_driver_laps_cleaned(race, abbr) for abbr in podium_finishers_abbrs
+    }
 
-    fig, ax = plt.subplots(figsize=(10.8, 10.8), dpi=100)
-    driver_data = initialize_driver_data()
-    last_driver_laps = None
+    valid_driver_laps_list = [
+        laps_df
+        for laps_df in driver_laps_map.values()
+        if laps_df is not None and not laps_df.empty
+    ]
 
-    for i, driver in enumerate(podium_finishers):
-        current_driver_laps = all_driver_laps_data[driver]
-
-        _, pit_lap_lines = process_driver_data(
-            ax, race, stints, driver, i, driver_data, current_driver_laps
+    if not valid_driver_laps_list:
+        print(
+            f"No valid lap data for any podium finishers in {year} {event_name}. Skipping."
         )
+        return {
+            "filename": None,
+            "caption": "No valid lap data for plot.",
+            "post": False,
+        }
 
-        driver_abbr = race.get_driver(driver)["Abbreviation"]
-        driver_color = fastf1.plotting.get_driver_style(
-            driver_abbr, style="color", session=race
-        )["color"]
+    all_laps_for_scaling = pd.concat(valid_driver_laps_list, ignore_index=True)
 
-        plot_driver_laps(ax, current_driver_laps, i, driver_color)
-        plot_pit_lap_lines(ax, pit_lap_lines, driver_color)
-        last_driver_laps = current_driver_laps
-
-    if last_driver_laps is not None:
-        plot_annotations(ax, driver_data["pit_lap_array"], last_driver_laps)
-
-    set_plot_labels(ax, race, min_lap_time, max_lap_time)
-    add_plot_titles(fig, ax, year, event_name, driver_data["drivers_abbr"])
-
-    sns.despine(left=True, bottom=True)
-    plt.tight_layout()
-
-    ax.legend(title="Compound", loc="upper right")
-    fig.legend(
-        title="Drivers",
-        handles=driver_data["legend_elements"],
-        loc="upper left",
-        bbox_to_anchor=(0.08, 0.95),
+    min_overall_time = (
+        all_laps_for_scaling["LapTime(s)"].min()
+        if not all_laps_for_scaling.empty
+        else None
+    )
+    max_overall_time = (
+        all_laps_for_scaling["LapTime(s)"].max()
+        if not all_laps_for_scaling.empty
+        else None
     )
 
-    filename = save_plot(fig, year, event_name)
-    caption = create_caption(
-        year,
-        event_name,
-        driver_data["drivers_abbr"],
-        driver_data["pit_lap_caption_arrays"],
-        driver_data["tire_type_arrays"],
-        driver_data["slope_str_arrays"],
-    )
+    global_y_anchor_top_val = None
+    global_plot_range_y_val = None
+    y_pos_for_pit_text_val = None
 
+    if (
+        min_overall_time is not None
+        and max_overall_time is not None
+        and not (pd.isna(min_overall_time) or pd.isna(max_overall_time))
+    ):
+        padding = (max_overall_time - min_overall_time) * 0.05
+        final_y_min = min_overall_time - padding
+        final_y_max = (
+            max_overall_time + padding + 0.5
+        )  # Adjusted for the new y-axis limit
+        global_y_anchor_top_val = final_y_max
+        global_plot_range_y_val = final_y_max - final_y_min
+        if global_plot_range_y_val == 0:
+            global_plot_range_y_val = 1
+        y_pos_for_pit_text_val = max_overall_time * 0.99
+    else:
+        global_plot_range_y_val = 1
+
+    stored_data = initialize_driver_data_storage()
+
+    with plt.style.context(["science", "bright"]):
+        plt.rcParams["figure.dpi"] = DPI
+        plt.rcParams["savefig.dpi"] = DPI
+        plt.rcParams["figure.autolayout"] = False
+        plt.rcParams["figure.constrained_layout.use"] = False
+        plt.rcParams["savefig.bbox"] = None
+
+        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("white")
+
+        prop_cycle = plt.rcParams["axes.prop_cycle"]
+        driver_plot_colors = [
+            prop_cycle.by_key()["color"][i % len(prop_cycle.by_key()["color"])]
+            for i in range(len(podium_finishers_abbrs))
+        ]
+
+        if global_y_anchor_top_val is None:
+            current_y_lim_pre = ax.get_ylim()
+            global_y_anchor_top_val = current_y_lim_pre[1]
+            if global_plot_range_y_val == 1 and (
+                current_y_lim_pre[1] - current_y_lim_pre[0] != 0
+            ):
+                global_plot_range_y_val = current_y_lim_pre[1] - current_y_lim_pre[0]
+
+        processed_drivers_count = 0
+        for i, driver_abbr_item in enumerate(podium_finishers_abbrs):
+            driver_laps_data = driver_laps_map.get(driver_abbr_item)
+
+            if driver_laps_data is None or driver_laps_data.empty:
+                if driver_abbr_item not in stored_data["drivers_abbr_list"]:
+                    stored_data["drivers_abbr_list"].append(driver_abbr_item)
+                    for key_to_update in [
+                        "slope_str_arrays",
+                        "tire_type_arrays",
+                        "pit_lap_caption_arrays",
+                    ]:
+                        stored_data[key_to_update].append(["N/A"])
+                continue
+
+            process_driver_data_single(
+                ax,
+                race,
+                driver_abbr_item,
+                i,
+                stored_data,
+                driver_laps_data,
+                driver_plot_colors[i],
+                LINES,
+                global_y_anchor_top_val,
+                global_plot_range_y_val,
+                y_pos_for_pit_text_val,
+            )
+            processed_drivers_count += 1
+
+        if processed_drivers_count == 0:
+            plt.close(fig)
+            print(
+                f"No driver data could be processed for plotting in {year} {event_name}."
+            )
+            return {
+                "filename": None,
+                "caption": "Failed to process driver data.",
+                "post": False,
+            }
+
+        set_plot_labels_styled(ax, race, min_overall_time, max_overall_time)
+        add_plot_titles_styled(fig, year, event_name, stored_data["drivers_abbr_list"])
+
+        compound_legend_handles = [
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color=fastf1.plotting.COMPOUND_COLORS.get(c, "black"),
+                label=c.capitalize(),
+                linestyle="None",
+                markersize=6,
+            )
+            for c in ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET", "UNKNOWN"]
+        ]
+        ax.legend(
+            handles=compound_legend_handles,
+            title="Tyre Compound",
+            loc="lower right",
+            fontsize=9,
+            title_fontsize=11,
+            labelcolor="black",
+            facecolor=ax.get_facecolor(),
+            edgecolor=ax.get_facecolor(),
+            framealpha=0.5,
+        )
+        if ax.get_legend() and ax.get_legend().get_title():
+            ax.get_legend().get_title().set_color("black")
+
+        if stored_data["legend_elements"]:
+            fig.legend(
+                handles=stored_data["legend_elements"],
+                title="Drivers",
+                loc="upper left",
+                bbox_to_anchor=(0.12, 0.88),
+                fontsize=9,
+                title_fontsize=11,
+                labelcolor="black",
+                facecolor=fig.get_facecolor(),
+                edgecolor=fig.get_facecolor(),
+                framealpha=0.5,
+            )
+            if fig.legends and fig.legends[0].get_title():
+                fig.legends[0].get_title().set_color("black")
+
+        suptitle_for_filename = (
+            f"{year} {event_name} Grand Prix Driver Lap Time Variation"
+        )
+        filename = save_plot_and_get_filename(fig, suptitle_for_filename, DPI)
+        plt.close(fig)
+
+    caption = create_styled_caption(year, event_name, stored_data)
     return {"filename": filename, "caption": caption, "post": post}
