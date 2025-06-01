@@ -6,7 +6,6 @@ from sklearn.linear_model import LinearRegression
 import fastf1
 import fastf1.plotting
 import pandas as pd
-import scienceplots
 import textwrap
 import numpy as np
 
@@ -306,12 +305,12 @@ def create_styled_caption(year_val, event_name_val, stored_data_dict):
     )
 
     caption_parts = [
-        f"🏎️",
+        "🏎️",
         f"« {year_val} {event_name_val} Grand Prix »",
-        f"",
+        "",
         f"• {base_title_for_caption}",
         f"• Comparison: {subtitle_lower_text_global}",
-        f"",
+        "",
     ]
 
     caption_parts.append("‣ Pit Laps (End of Stint):")
@@ -444,8 +443,6 @@ def driver_laptimes_scatterplot(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
     """Plot driver lap times variation with pit lap annotations, styled."""
-    global suptitle_text_global, subtitle_lower_text_global
-
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
     )

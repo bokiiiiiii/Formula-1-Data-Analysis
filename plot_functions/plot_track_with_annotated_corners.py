@@ -3,7 +3,6 @@ import numpy as np
 import fastf1
 import fastf1.plotting  # Added for setup_mpl
 import textwrap
-import scienceplots  # 新增導入
 
 # from auto_ig_post import auto_ig_post # Assuming this is not needed for styling
 from fastf1.ergast import Ergast

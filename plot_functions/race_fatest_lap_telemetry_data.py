@@ -1,7 +1,6 @@
-import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.cm as cm
-import matplotlib, textwrap
+import textwrap
 import fastf1
 import fastf1.plotting
 import fastf1.utils
@@ -9,7 +8,6 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 import pandas as pd
 import numpy as np
-import scienceplots
 
 # Global variables for caption generation consistency
 suptitle_text_global = ""

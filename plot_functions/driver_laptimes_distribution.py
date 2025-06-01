@@ -6,7 +6,6 @@ from scipy.interpolate import make_interp_spline
 import pandas as pd
 import fastf1
 import fastf1.plotting
-import scienceplots
 import textwrap
 
 QUICKLAP_THRESHOLD = 1.05
