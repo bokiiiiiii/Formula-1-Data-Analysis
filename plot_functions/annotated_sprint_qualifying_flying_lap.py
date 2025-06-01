@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-import matplotlib.cm as cm  # 導入 cm
+import matplotlib.cm as cm
 import textwrap
 import fastf1
 import fastf1.plotting
