@@ -1,7 +1,7 @@
 import re
 import time
 import os
-from playwright.sync_api import Playwright, sync_playwright
+from playwright.sync_api import sync_playwright
 
 
 def auto_ig_post(image_path: str, caption: str) -> None:

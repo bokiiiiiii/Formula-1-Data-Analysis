@@ -1,11 +1,9 @@
-import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.cm as cm  # 導入 cm
-import matplotlib, textwrap
+import textwrap
 import fastf1
 import fastf1.plotting
 import fastf1.utils
-import scienceplots  # 新增導入
 
 
 def annotated_sprint_qualifying_flying_lap(
@@ -350,7 +348,7 @@ def annotated_sprint_qualifying_flying_lap(
         subtitle_lower_text = (
             f"{driver_data['abbreviations'][0]} vs {driver_data['abbreviations'][1]}"
         )
-        subt = plt.figtext(
+        plt.figtext(
             0.5,
             0.94,
             subtitle_text,
@@ -358,7 +356,7 @@ def annotated_sprint_qualifying_flying_lap(
             fontsize=15,
             color="black",
         )
-        subtl = plt.figtext(
+        plt.figtext(
             0.5, 0.915, subtitle_lower_text, ha="center", fontsize=13, color="black"
         )
 

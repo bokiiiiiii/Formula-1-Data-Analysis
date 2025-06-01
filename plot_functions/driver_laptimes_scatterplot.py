@@ -6,7 +6,6 @@ from sklearn.linear_model import LinearRegression
 import fastf1
 import fastf1.plotting
 import pandas as pd
-import scienceplots
 import textwrap
 import numpy as np
 
@@ -306,12 +305,12 @@ def create_styled_caption(year_val, event_name_val, stored_data_dict):
     )
 
     caption_parts = [
-        f"🏎️",
+        "🏎️",
         f"« {year_val} {event_name_val} Grand Prix »",
-        f"",
+        "",
         f"• {base_title_for_caption}",
         f"• Comparison: {subtitle_lower_text_global}",
-        f"",
+        "",
     ]
 
     caption_parts.append("‣ Pit Laps (End of Stint):")

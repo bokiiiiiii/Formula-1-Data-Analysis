@@ -1,11 +1,9 @@
-import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.cm as cm
-import matplotlib, textwrap
+import textwrap
 import fastf1
 import fastf1.plotting
 import fastf1.utils
-import scienceplots
 
 
 def annotated_race_fatest_lap(
@@ -378,7 +376,7 @@ def annotated_race_fatest_lap(
         plot_display_suptitle = (
             f"{year} {event_name} Grand Prix Driver Fastest Laps Comparison"
         )
-        st = plt.suptitle(plot_display_suptitle, fontsize=18, color="black")
+        plt.suptitle(plot_display_suptitle, fontsize=18, color="black")
 
         suptitle_for_filename = (
             f"{year} {event_name} Grand Prix Driver Race Fastest Lap"

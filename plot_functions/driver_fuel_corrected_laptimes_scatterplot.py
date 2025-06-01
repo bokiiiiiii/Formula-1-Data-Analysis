@@ -6,7 +6,6 @@ from sklearn.linear_model import LinearRegression
 import fastf1
 import fastf1.plotting
 import pandas as pd
-import scienceplots
 import textwrap
 import numpy as np
 
@@ -249,7 +248,7 @@ def create_styled_caption_fuel_corrected(year_val, event_name_val, stored_data_d
         " Grand Prix: ", " - "
     )
     caption_parts = [
-        f"🏎️",
+        "🏎️",
         f"« {year_val} {event_name_val} Grand Prix »",
         "",
         f"• {base_title_for_caption}",
