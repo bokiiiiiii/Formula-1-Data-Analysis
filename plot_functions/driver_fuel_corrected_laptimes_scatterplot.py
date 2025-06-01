@@ -392,7 +392,6 @@ def process_driver_data_single_fuel_corrected(
 def driver_fuel_corrected_laptimes_scatterplot(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    global suptitle_text_global, subtitle_lower_text_global
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
     )

@@ -115,7 +115,6 @@ def select_event_name(options: list) -> str:
             )
 
     def on_closing():
-        nonlocal selected_event
         if selected_event is None:
             print("No event selected, exiting.")
             exit()
