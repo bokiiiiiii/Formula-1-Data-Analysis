@@ -8,6 +8,8 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 import pandas as pd
 import numpy as np
+import scienceplots
+import matplotlib
 
 # Global variables for caption generation consistency
 suptitle_text_global = ""

@@ -7,6 +7,8 @@ import pandas as pd
 import fastf1
 import fastf1.plotting
 import textwrap
+import scienceplots
+import matplotlib
 
 QUICKLAP_THRESHOLD = 1.05
 BANDWIDTH = 0.17

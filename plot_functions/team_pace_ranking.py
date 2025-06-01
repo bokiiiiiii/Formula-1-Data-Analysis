@@ -4,6 +4,8 @@ import fastf1
 import textwrap
 import fastf1.plotting
 import numpy as np
+import scienceplots
+import matplotlib
 from scipy.interpolate import make_interp_spline
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D

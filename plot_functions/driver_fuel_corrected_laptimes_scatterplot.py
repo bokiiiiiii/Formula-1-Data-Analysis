@@ -8,6 +8,8 @@ import fastf1.plotting
 import pandas as pd
 import textwrap
 import numpy as np
+import scienceplots
+import matplotlib
 
 QUICKLAP_THRESHOLD = 1.07
 CORRECTED_LAPTIME_PER_LAP = 0.05

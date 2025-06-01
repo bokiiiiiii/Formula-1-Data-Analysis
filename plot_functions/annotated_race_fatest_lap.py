@@ -1,6 +1,8 @@
 from matplotlib import pyplot as plt
 import matplotlib.cm as cm
 import textwrap
+import scienceplots
+import matplotlib
 import fastf1
 import fastf1.plotting
 import fastf1.utils
