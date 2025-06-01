@@ -11,8 +11,8 @@ from auto_ig_post import auto_ig_post
 from plot_functions import *
 
 YEAR = 2025
-SESSION_NAME = "R"
-ENABLE_ALL = True
+SESSION_NAME = "FP1+Q+R"
+ENABLE_ALL = False
 
 ALL_EVENT_OPTIONS = [
     "Bahrain",
