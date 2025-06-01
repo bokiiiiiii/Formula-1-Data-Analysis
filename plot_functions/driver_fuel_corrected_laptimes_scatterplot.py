@@ -473,15 +473,13 @@ def driver_fuel_corrected_laptimes_scatterplot(
             global_plot_range_y_val = 1.0
 
     with plt.style.context(["science", "bright"]):
-        plt.rcParams.update(
-            {
-                "figure.dpi": DPI,
-                "savefig.dpi": DPI,
-                "figure.autolayout": False,
-                "figure.constrained_layout.use": False,
-            }
-        )
-        fig, ax = plt.subplots(figsize=FIG_SIZE)
+        plt.rcParams["figure.dpi"] = DPI
+        plt.rcParams["savefig.dpi"] = DPI
+        plt.rcParams["figure.autolayout"] = False
+        plt.rcParams["figure.constrained_layout.use"] = False
+        plt.rcParams["savefig.bbox"] = None
+
+        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
         fig.patch.set_facecolor("white")
         ax.set_facecolor("white")
 
