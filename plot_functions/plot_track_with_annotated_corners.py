@@ -18,7 +18,7 @@ all_country_name = {
     "Japanese": "Japan",
     "Chinese": "China",
     "Miami": "USA",
-    "Emilia Romagna": "Italy",  # Assuming Imola is in Italy
+    "Emilia Romagna": "Italy",
     "Monaco": "Monaco",
     "Canadian": "Canada",
     "Spanish": "Spain",
@@ -30,12 +30,12 @@ all_country_name = {
     "Italian": "Italy",
     "Azerbaijan": "Azerbaijan",
     "Singapore": "Singapore",
-    "United States": "USA",  # Austin
+    "United States": "USA",
     "Mexico": "Mexico",
     "São Paulo": "Brazil",
     "Las Vegas": "USA",
     "Qatar": "Qatar",
-    "Abu Dhabi": "UAE",  # Assuming Abu Dhabi is in UAE
+    "Abu Dhabi": "UAE",
 }
 
 
