@@ -1,7 +1,7 @@
 import re
 import time
 import os
-from playwright.sync_api import Playwright, sync_playwright
+from playwright.sync_api import sync_playwright
 
 
 def auto_ig_post(image_path: str, caption: str) -> None:
@@ -43,6 +43,10 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         time.sleep(3)
 
         page.set_input_files('input[type="file"]', image_path)
+        time.sleep(3)
+
+        page.locator("button").filter(has_text="選擇「裁切」").click()
+        page.get_by_role("button", name=":5 「裁切成直向」圖示").click()
         time.sleep(3)
 
         page.get_by_role("button", name="下一步").click()

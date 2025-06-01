@@ -1,242 +1,481 @@
-import seaborn as sns
 from matplotlib import pyplot as plt
-import matplotlib, textwrap
+import matplotlib.cm as cm
+import textwrap
 import fastf1
 import fastf1.plotting
 import fastf1.utils
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
+import pandas as pd
+import numpy as np
+
+# Global variables for caption generation consistency
+suptitle_text_global = ""
+subtitle_lower_text_global = ""
 
 
 def race_fatest_lap_telemetry_data(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    """Plot the telemetry data of the race fastest laps."""
+    """Plot the telemetry data of the race fastest laps with styled appearance."""
+    global suptitle_text_global, subtitle_lower_text_global
 
-    def get_driver_team_info(driver):
-        return race.laps[race.laps["Driver"] == driver]["Team"].iloc[0]
+    fastf1.plotting.setup_mpl(
+        mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
+    )
 
-    def get_lap_time_str(lap_time):
-        return (
-            f"{lap_time.total_seconds() // 60:.0f}:{lap_time.total_seconds() % 60:.3f}"
+    # Plotting constants for consistent sizing
+    DPI = 125
+    FIG_SIZE = (1080 / DPI, 1350 / DPI)  # Target 1080x1350 pixels
+
+    race.load()
+    race_results = race.results
+
+    # Ensure there are at least two drivers in results
+    if len(race_results) < 2:
+        print(
+            f"Not enough drivers in results for {year} {event_name} {session_name}. Skipping plot."
+        )
+        return {
+            "filename": None,
+            "caption": "Not enough data for comparison.",
+            "post": False,
+        }
+
+    front_row_drivers_abbr = list(race_results["Abbreviation"][:2])
+
+    def get_lap_time_str_formatted(lap_time_obj):
+        return f"{lap_time_obj.total_seconds() // 60:.0f}:{lap_time_obj.total_seconds() % 60:06.3f}"  # Ensure 3 decimal places for ms
+
+    # Modified plotting functions to accept assigned_color from scienceplots cycle
+    def plot_telemetry_data_styled(
+        ax_param,
+        car_data_df,
+        assigned_color,
+        driver_abbr_label,
+        linestyle_val,
+        data_key_label,
+    ):
+        data_to_plot = car_data_df[data_key_label]
+        if data_key_label == "Brake":
+            data_to_plot = data_to_plot * 100
+        ax_param.plot(
+            car_data_df["Distance"],
+            data_to_plot,
+            color=assigned_color,
+            linestyle=linestyle_val,
         )
 
-    def plot_telemetry_data(ax, car_data, team_color, driver, linestyle, data_label):
-        ax.plot(
-            car_data["Distance"],
-            car_data[data_label],
-            color=team_color,
-            linestyle=linestyle,
+    def plot_speed_data_styled(
+        ax_param,
+        car_data_df,
+        assigned_color,
+        driver_abbr_label,
+        linestyle_val,
+        lap_time_str_val,
+    ):
+        ax_param.plot(
+            car_data_df["Distance"],
+            car_data_df["Speed"],
+            color=assigned_color,
+            label=f"{driver_abbr_label}: {lap_time_str_val}",  # Lap time format is fixed in get_lap_time_str_formatted
+            linestyle=linestyle_val,
         )
 
-    def plot_speed_data(ax, car_data, team_color, driver, linestyle, lap_time_str):
-        ax.plot(
-            car_data["Distance"],
-            car_data["Speed"],
-            color=team_color,
-            label=f"{driver}: {lap_time_str} (min:s.ms)",
-            linestyle=linestyle,
-        )
+    def annotate_brake_points_styled(
+        ax_param, car_data_df, assigned_color, driver_abbr_label
+    ):
+        brake_segments_df = car_data_df[
+            car_data_df["Brake"] > 0.1
+        ]  # Use a threshold for brake
+        if brake_segments_df.empty:
+            return
 
-    def annotate_brake_points(ax, car_data, team_color, driver):
-        brake_segments = car_data[car_data["Brake"] > 0]
-        segment_indices = brake_segments.index.to_series().diff().gt(1).cumsum()
-        first_brake_points = brake_segments.groupby(segment_indices).first()
+        segment_indices_val = (
+            brake_segments_df.index.to_series().diff().fillna(1.0).gt(1).cumsum()
+        )  # fillna for first element
+        first_brake_points_df = brake_segments_df.groupby(segment_indices_val).first()
 
-        ax.scatter(
-            first_brake_points["Distance"],
-            first_brake_points["Brake"],
-            color=team_color,
-            s=30,
+        ax_param.scatter(
+            first_brake_points_df["Distance"],
+            first_brake_points_df["Brake"] * 100,  # Plot against Brake value for y-pos
+            color=assigned_color,
+            s=7,
             zorder=5,
-            edgecolor="black",
-            label=f"{driver} Brake Points",
+            edgecolor="None",
+            linewidth=0.5,
+            label=f"{driver_abbr_label}",
         )
 
-        ax.legend(loc="upper right")
-
-    def save_plot(fig, filename):
-        plt.tight_layout()
-        plt.savefig(filename)
-
-    def generate_caption():
-        titles_str = (
-            suptitle.replace(f"{year} ", "")
-            .replace(f"{event_name} ", "")
-            .replace("Grand Prix ", "")
+    def save_plot_final(fig_param, suptitle_text_param, dpi_val):
+        filename = (
+            f"../pic/{suptitle_text_param.replace(' ', '_').replace(':', '')}.png"
         )
+        fig_param.savefig(filename, dpi=dpi_val, bbox_inches=None)
+        return filename
+
+    def generate_styled_caption():  # Uses global variables for consistency
+        # Construct caption title from global suptitle
+        base_title_for_caption = suptitle_text_global.replace(f"{year} ", "").replace(
+            f"{event_name} Grand Prix ", ""
+        )
+
         return textwrap.dedent(
             f"""\
 🏎️
 « {year} {event_name} Grand Prix »
 
-• {titles_str} {subtitle}
+• {base_title_for_caption}
+• Comparison: {subtitle_lower_text_global}
 
 ‣ Top Speed
-\t◦ {driver_data["abbreviations"][0]}
-\t{driver_data["top_speeds"][drivers[0]]:.1f} (km/h)
-\t◦ {driver_data["abbreviations"][1]}
-\t{driver_data["top_speeds"][drivers[1]]:.1f} (km/h)
-‣‣ Top Speed Gap: {speed_diff:.1f} (km/h)
+\t◦ {driver_data_dict["abbreviations"][0]}
+\t{driver_data_dict["top_speeds"][front_row_drivers_abbr[0]]:.1f} (km/h)
+\t◦ {driver_data_dict["abbreviations"][1]}
+\t{driver_data_dict["top_speeds"][front_row_drivers_abbr[1]]:.1f} (km/h)
+‣‣ Top Speed Gap: {speed_diff_val:.1f} (km/h)
 
 ‣ Lap Time
-\t◦ {driver_data["abbreviations"][0]}
-\t{driver_data["lap_time_array"][0]} (min:s.ms)
-\t◦ {driver_data["abbreviations"][1]}
-\t{driver_data["lap_time_array"][1]} (min:s.ms)
-‣‣ Delta Lap Time: {laptime_diff_str} (s)  
+\t◦ {driver_data_dict["abbreviations"][0]}
+\t{driver_data_dict["lap_time_str_list"][0]} (min:s.ms)
+\t◦ {driver_data_dict["abbreviations"][1]}
+\t{driver_data_dict["lap_time_str_list"][1]} (min:s.ms)
+‣‣ Delta Lap Time: {laptime_diff_str_val} (s)  
 
 #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
         )
 
-    race.load()
-    race_results = race.results
-    front_row = race_results[:2]
+    with plt.style.context(["science", "bright"]):
+        # Attempt to override scienceplots' potential dimension-altering rcParams
+        plt.rcParams["figure.dpi"] = DPI
+        plt.rcParams["savefig.dpi"] = DPI
+        plt.rcParams["figure.autolayout"] = False
+        plt.rcParams["figure.constrained_layout.use"] = False
+        plt.rcParams["savefig.bbox"] = None
 
-    fig, ax = plt.subplots(5, figsize=(10.8, 10.8), dpi=100)
+        fig, axes = plt.subplots(5, figsize=FIG_SIZE, dpi=DPI, sharex=True)
+        fig.patch.set_facecolor("white")
+        for ax_item in axes:
+            ax_item.set_facecolor("white")
 
-    drivers = list(front_row["Abbreviation"])
-    teams = [get_driver_team_info(driver) for driver in drivers]
-    same_team = teams[0] == teams[1]
+        # Get scienceplots color cycle
+        prop_cycle = plt.rcParams["axes.prop_cycle"]
+        color_cycle = prop_cycle.by_key()["color"]
 
-    driver_data = {
-        "top_speeds": {},
-        "compared_laps": [],
-        "team_colors": [],
-        "abbreviations": [],
-        "lap_time_array": [],
-        "lap_time_str": [],
-    }
+        driver_data_dict = {
+            "top_speeds": {},
+            "compared_laps_objects": [],
+            "driver_line_colors": [],
+            "abbreviations": [],
+            "lap_time_seconds_list": [],
+            "lap_time_str_list": [],
+        }
 
-    v_min = float("inf")
-    v_max = float("-inf")
-    d_max = float("-inf")
-
-    for i, driver in enumerate(drivers):
-        lap = race.laps[race.laps["Driver"] == driver].pick_fastest()
-        driver_data["compared_laps"].append(lap)
-        car_data = lap.get_car_data().add_distance()
-        team_color = fastf1.plotting.get_team_color(lap["Team"], race)
-        driver_data["team_colors"].append(team_color)
-
-        lap_time = lap["LapTime"]
-        lap_time_str = get_lap_time_str(lap_time)
-        driver_data["lap_time_array"].append(lap_time.total_seconds())
-        driver_data["lap_time_str"].append(lap_time_str)
-
-        car_data = driver_data["compared_laps"][i].get_car_data().add_distance()
-        car_data["Acceleration"] = (
-            car_data["Speed"].diff() / car_data["Distance"].diff()
-        )
-        car_data["Acceleration"] = gaussian_filter1d(
-            car_data["Acceleration"].fillna(0), sigma=1.5
+        v_min_speed, v_max_speed, d_max_dist = (
+            float("inf"),
+            float("-inf"),
+            float("-inf"),
         )
 
-        linestyle = "-" if i == 0 or not same_team else "--"
-        plot_speed_data(ax[0], car_data, team_color, driver, linestyle, lap_time_str)
-        plot_telemetry_data(ax[1], car_data, team_color, driver, linestyle, "Throttle")
-        plot_telemetry_data(ax[2], car_data, team_color, driver, linestyle, "Brake")
-        ax[3].plot(
-            car_data["Distance"],
-            car_data["Acceleration"],
-            color=driver_data["team_colors"][i],
-            linestyle="-",
-            label=f"{driver} Acceleration",
+        processed_driver_count = 0
+        for i, driver_abbr_val in enumerate(front_row_drivers_abbr):
+            try:
+                lap_obj = race.laps.pick_driver(driver_abbr_val).pick_fastest()
+                if lap_obj is None or pd.isna(lap_obj.LapTime):
+                    print(
+                        f"No valid fastest lap for {driver_abbr_val}. Skipping this driver."
+                    )
+                    continue
+            except Exception as e:
+                print(
+                    f"Error picking fastest lap for {driver_abbr_val}: {e}. Skipping this driver."
+                )
+                continue
+
+            driver_data_dict["compared_laps_objects"].append(lap_obj)
+            car_data_df = lap_obj.get_car_data().add_distance()
+
+            # If car_data is empty, skip this driver
+            if car_data_df.empty:
+                print(
+                    f"No car data for {driver_abbr_val}'s fastest lap. Skipping this driver."
+                )
+                # Remove already added lap_obj if car_data is empty
+                if (
+                    driver_data_dict["compared_laps_objects"]
+                    and driver_data_dict["compared_laps_objects"][-1] is lap_obj
+                ):
+                    driver_data_dict["compared_laps_objects"].pop()
+                continue
+
+            assigned_plot_color = color_cycle[i % len(color_cycle)]
+            driver_data_dict["driver_line_colors"].append(assigned_plot_color)
+
+            lap_time_obj = lap_obj["LapTime"]
+            lap_time_str_val = get_lap_time_str_formatted(lap_time_obj)
+            driver_data_dict["lap_time_seconds_list"].append(
+                lap_time_obj.total_seconds()
+            )
+            driver_data_dict["lap_time_str_list"].append(lap_time_str_val)
+
+            # Determine linestyle (only if teams are different and it's the second driver)
+            # This requires knowing both drivers' teams.
+            team1_name = (
+                driver_data_dict["compared_laps_objects"][0]["Team"]
+                if driver_data_dict["compared_laps_objects"]
+                else ""
+            )
+            team2_name = lap_obj["Team"] if i == 1 else team1_name
+            are_same_team = team1_name == team2_name if i == 1 and team1_name else False
+
+            linestyle_val = "--" if i == 1 and are_same_team else "-"
+
+            plot_speed_data_styled(
+                axes[0],
+                car_data_df,
+                assigned_plot_color,
+                driver_abbr_val,
+                linestyle_val,
+                lap_time_str_val,
+            )
+            plot_telemetry_data_styled(
+                axes[1],
+                car_data_df,
+                assigned_plot_color,
+                driver_abbr_val,
+                linestyle_val,
+                "Throttle",
+            )
+            plot_telemetry_data_styled(
+                axes[2],
+                car_data_df,
+                assigned_plot_color,
+                driver_abbr_val,
+                linestyle_val,
+                "Brake",
+            )
+
+            # Acceleration
+            car_data_df.loc[:, "Acceleration"] = gaussian_filter1d(
+                car_data_df["Speed"].diff().fillna(0)
+                / car_data_df["Time"].dt.total_seconds().diff().fillna(method="bfill"),
+                sigma=2,
+            )
+            axes[3].plot(
+                car_data_df["Distance"],
+                car_data_df["Acceleration"],
+                color=assigned_plot_color,
+                linestyle=linestyle_val,
+                label=f"{driver_abbr_val}",
+            )
+
+            annotate_brake_points_styled(
+                axes[2], car_data_df, assigned_plot_color, driver_abbr_val
+            )
+
+            driver_data_dict["top_speeds"][driver_abbr_val] = car_data_df["Speed"].max()
+            driver_data_dict["abbreviations"].append(driver_abbr_val)
+
+            v_min_speed = min(v_min_speed, car_data_df["Speed"].min())
+            v_max_speed = max(v_max_speed, car_data_df["Speed"].max())
+            d_max_dist = max(d_max_dist, car_data_df["Distance"].max())
+            processed_driver_count += 1
+
+        if processed_driver_count < 2:
+            print(
+                f"Not enough driver data processed for comparison in {year} {event_name}. Skipping plot."
+            )
+            plt.close(fig)
+            return {
+                "filename": None,
+                "caption": "Failed to process data for two drivers.",
+                "post": False,
+            }
+
+        speed_diff_val = abs(
+            driver_data_dict["top_speeds"][front_row_drivers_abbr[0]]
+            - driver_data_dict["top_speeds"][front_row_drivers_abbr[1]]
+        )
+        laptime_diff_val = abs(
+            driver_data_dict["lap_time_seconds_list"][0]
+            - driver_data_dict["lap_time_seconds_list"][1]
+        )
+        laptime_diff_str_val = f"{laptime_diff_val % 60:.3f}"
+
+        # Speed difference plot (ax0_right)
+        car_data1_df = (
+            driver_data_dict["compared_laps_objects"][0].get_car_data().add_distance()
+        )
+        car_data2_df = (
+            driver_data_dict["compared_laps_objects"][1].get_car_data().add_distance()
         )
 
-        annotate_brake_points(ax[2], car_data, team_color, driver)
+        interp_speed2_func = interp1d(
+            car_data2_df["Distance"],
+            car_data2_df["Speed"],
+            kind="linear",
+            bounds_error=False,
+            fill_value="extrapolate",
+        )
+        aligned_speed2_vals = interp_speed2_func(car_data1_df["Distance"])
+        speed_difference_vals = car_data1_df["Speed"] - aligned_speed2_vals
+        max_abs_diff = (
+            np.nanmax(np.abs(speed_difference_vals))
+            if not np.all(np.isnan(speed_difference_vals))
+            else 10
+        )
 
-        top_speed = car_data["Speed"].max()
-        driver_data["top_speeds"][driver] = top_speed
+        ax0_twin = axes[0].twinx()
+        speed_diff_line_color = "green"
+        ax0_twin.plot(
+            car_data1_df["Distance"],
+            speed_difference_vals,
+            color=speed_diff_line_color,
+            linestyle=":",
+            label="Diff.",
+        )
+        # Fill between for speed difference
+        ax0_twin.fill_between(
+            car_data1_df["Distance"],
+            speed_difference_vals,
+            0,
+            where=speed_difference_vals > 0,
+            color=driver_data_dict["driver_line_colors"][0],
+            alpha=0.2,
+            interpolate=True,
+        )
+        ax0_twin.fill_between(
+            car_data1_df["Distance"],
+            speed_difference_vals,
+            0,
+            where=speed_difference_vals < 0,
+            color=driver_data_dict["driver_line_colors"][1],
+            alpha=0.2,
+            interpolate=True,
+        )
+        ax0_twin.set_ylabel(
+            r"$\Delta$ Speed (km/h)", fontsize=12, color=speed_diff_line_color
+        )
+        ax0_twin.tick_params(
+            axis="y", labelcolor=speed_diff_line_color, colors=speed_diff_line_color
+        )
+        ax0_twin.set_ylim([-max_abs_diff * 1.1, max_abs_diff * 1.1])
+        ax0_twin.grid(False)
 
-        driver_abbr = race.get_driver(driver)["Abbreviation"]
-        driver_data["abbreviations"].append(driver_abbr)
+        # Consolidate legends for axes[0]
+        lines_main, labels_main = axes[0].get_legend_handles_labels()
+        lines_twin, labels_twin = ax0_twin.get_legend_handles_labels()
+        axes[0].legend(
+            lines_main + lines_twin,
+            labels_main + labels_twin,
+            loc="lower center",  # Position legend anchor point at the bottom center of the legend box
+            bbox_to_anchor=(
+                0.5,
+                1.02,
+            ),  # Place legend box: x=0.5 (center), y=1.02 (slightly above the axes)
+            ncol=len(labels_main + labels_twin),  # Arrange legend items horizontally
+            fontsize=9,
+            title_fontsize=10,
+            facecolor="white",
+            framealpha=0.7,
+        ).get_title().set_color("black")
+        plt.setp(axes[0].get_legend().get_texts(), color="black")
 
-        v_min = min(v_min, car_data["Speed"].min())
-        v_max = max(v_max, car_data["Speed"].max())
-        d_max = max(d_max, car_data["Distance"].max())
+        # Delta time plot (axes[4]) - similar to annotated_qualifying_flying_lap
+        delta_time_vals, ref_tel_df, _ = fastf1.utils.delta_time(
+            driver_data_dict["compared_laps_objects"][0],
+            driver_data_dict["compared_laps_objects"][1],
+        )
+        delta_line_color_val = cm.get_cmap("PiYG")(
+            0.9 if delta_time_vals.mean() > 0 else 0.1
+        )  # Color based on who is faster on avg
+        axes[4].plot(
+            ref_tel_df["Distance"], delta_time_vals, "--", color=delta_line_color_val
+        )
+        axes[4].fill_between(
+            ref_tel_df["Distance"],
+            delta_time_vals,
+            0,
+            where=delta_time_vals > 0,
+            color=driver_data_dict["driver_line_colors"][0],
+            alpha=0.2,
+            interpolate=True,
+        )
+        axes[4].fill_between(
+            ref_tel_df["Distance"],
+            delta_time_vals,
+            0,
+            where=delta_time_vals < 0,
+            color=driver_data_dict["driver_line_colors"][1],
+            alpha=0.2,
+            interpolate=True,
+        )
 
-    speed_diff = abs(
-        driver_data["top_speeds"][drivers[0]] - driver_data["top_speeds"][drivers[1]]
-    )
-    laptime_diff = abs(
-        driver_data["lap_time_array"][0] - driver_data["lap_time_array"][1]
-    )
-    laptime_diff_str = f"{laptime_diff % 60:.3f}"
+        current_delta_ylim = (
+            np.nanmax(np.abs(delta_time_vals)) + 0.1
+            if not np.all(np.isnan(delta_time_vals))
+            else 1.0
+        )
+        axes[4].set_ylim([-current_delta_ylim, current_delta_ylim])
+        axes[4].yaxis.set_major_formatter(
+            lambda x, pos: f"+{x:.1f}" if x > 0 else f"{x:.1f}"
+        )
 
-    car_data1 = driver_data["compared_laps"][0].get_car_data().add_distance()
-    car_data2 = driver_data["compared_laps"][1].get_car_data().add_distance()
+        # Styling for all axes
+        for i, ax_item in enumerate(axes):
+            ax_item.label_outer()  # Hide interior labels
+            ax_item.grid(True, linestyle="--", alpha=0.7, color="lightgrey")
+            ax_item.set_xlim([0, d_max_dist])
+            ax_item.tick_params(axis="x", colors="black")
+            ax_item.tick_params(axis="y", colors="black")
+            if ax_item.get_legend() and i != 0:  # axes[0] legend handled above
+                plt.setp(ax_item.get_legend().get_texts(), color="black")
+                if ax_item.get_legend().get_title():
+                    ax_item.get_legend().get_title().set_color("black")
 
-    interp_speed2 = interp1d(
-        car_data2["Distance"],
-        car_data2["Speed"],
-        kind="linear",
-        bounds_error=False,
-        fill_value="extrapolate",
-    )
-    aligned_speed2 = interp_speed2(car_data1["Distance"])
-    speed_difference = car_data1["Speed"] - aligned_speed2
-    max_diff = max(abs(speed_difference))
+        axes[0].set_ylim([v_min_speed - 20, v_max_speed + 20])
+        axes[0].set_ylabel(r"Speed (km/h)", fontsize=12, color="black")
 
-    for a in ax.flat:
-        a.label_outer()
-        a.grid(True, alpha=0.3)
-        a.set_xlim([0, d_max])
+        axes[1].set_ylabel(r"Throttle (\%)", fontsize=12, color="black")
+        axes[1].set_ylim([-5, 105])
 
-    ax[0].set_ylim([v_min - 40, v_max + 40])
-    ax[0].set_ylabel("Speed (km/h)", fontweight="bold", fontsize=12)
-    ax[0].legend(title="Drivers", loc="upper right")
+        axes[2].set_ylabel(r"Brake (\%)", fontsize=12, color="black")
+        axes[2].set_ylim([-5, 105])
+        axes[2].set_yticks([0, 25, 50, 75, 100])
 
-    ax0_right = ax[0].twinx()
-    ax0_right.set_ylim(-max_diff, max_diff)
-    ax0_right.plot(
-        car_data1["Distance"],
-        speed_difference,
-        color="white",
-        linestyle=":",
-        label="Speed Diffrence",
-    )
+        axes[3].set_ylabel(r"Acceleration (m/s$^2$)", fontsize=12, color="black")
 
-    ax0_right.set_ylabel(
-        "Speed Difference (km/h)", fontweight="bold", fontsize=12, color="white"
-    )
-    ax0_right.tick_params(axis="y", labelcolor="white")
-    ax0_right.grid(False)
+        axes[4].set_ylabel(
+            r"$\Delta$ Lap Time (s)", fontsize=12, color=delta_line_color_val
+        )
+        axes[4].tick_params(
+            axis="y", labelcolor=delta_line_color_val, colors=delta_line_color_val
+        )
+        axes[4].set_xlabel("Distance (m)", fontsize=12, color="black")
 
-    lines_1, labels_1 = ax[0].get_legend_handles_labels()
-    lines_2, labels_2 = ax0_right.get_legend_handles_labels()
-    ax[0].legend(lines_1 + lines_2, labels_1 + labels_2, loc="upper right")
+        suptitle_text_global = (
+            f"{year} {event_name} Grand Prix: Fastest Lap Telemetry Comparison"
+        )
+        plt.suptitle(suptitle_text_global, fontsize=18, color="black")
+        subtitle_lower_text_global = f"{driver_data_dict['abbreviations'][0]} vs {driver_data_dict['abbreviations'][1]}"
+        plt.figtext(
+            0.5,
+            0.935,
+            subtitle_lower_text_global,
+            ha="center",
+            fontsize=13,
+            color="black",
+        )
 
-    ax[1].set_ylabel("Throttle (%)", fontweight="bold", fontsize=12)
+        # Define the suptitle string that should be used for generating the filename,
+        # matching the original pattern.
+        suptitle_for_filename = (
+            f"{year} {event_name} Grand Prix Driver Race Fastest Lap Telemetry"
+        )
 
-    ax[2].set_ylabel("Brakes (%)", fontweight="bold", fontsize=12)
-    ax[2].set_yticklabels([str(i) for i in range(-20, 101, 20)])
+        filename = save_plot_final(fig, suptitle_for_filename, DPI)
+        plt.close(fig)
 
-    ax[3].set_ylabel("Acceleration (m/s²)", fontweight="bold", fontsize=12)
-    ax[3].grid(True, alpha=0.3)
-
-    delta_time, ref_tel, _ = fastf1.utils.delta_time(
-        driver_data["compared_laps"][1], driver_data["compared_laps"][0]
-    )
-    ax[4].plot(
-        ref_tel["Distance"],
-        delta_time,
-        color=driver_data["team_colors"][1],
-        label=drivers[1],
-    )
-
-    ax[4].set_ylabel("Delta Lap Time (s)", fontweight="bold", fontsize=12)
-    ax[4].set_xlabel("Distance (m)", fontweight="bold", fontsize=12)
-    ax[4].legend(title="Driver", loc="upper right")
-
-    suptitle = f"{year} {event_name} Grand Prix Driver Race Fastest Lap Telemetry"
-    plt.suptitle(suptitle, fontweight="bold", fontsize=16)
-
-    subtitle = f"{driver_data['abbreviations'][0]} vs {driver_data['abbreviations'][1]}"
-    plt.figtext(0.5, 0.937, subtitle, ha="center", fontsize=12, fontweight="bold")
-
-    filename = f"../pic/{suptitle.replace(' ', '_')}.png"
-    save_plot(fig, filename)
-
-    caption = generate_caption()
+    # generate_styled_caption uses suptitle_text_global for display consistency
+    caption = generate_styled_caption()
     return {"filename": filename, "caption": caption, "post": post}
