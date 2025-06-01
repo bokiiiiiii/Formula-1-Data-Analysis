@@ -11,7 +11,7 @@ from auto_ig_post import auto_ig_post
 from plot_functions import *
 
 YEAR = 2025
-SESSION_NAME = "Q"
+SESSION_NAME = "FP1+Q+R"
 ENABLE_ALL = False
 
 ALL_EVENT_OPTIONS = [
@@ -144,14 +144,18 @@ EVENT_NAME = select_event_name(ALL_EVENT_OPTIONS)
 print(f"Selected Event: {EVENT_NAME}")
 
 FUNC_PARAMS = {
+    # FP1
     "plot_track_with_annotated_corners": {"enabled": False, "session": "FP1"},
+    # Q
     "annotated_qualifying_flying_lap": {"enabled": False, "session": "Q"},
+    # R
     "annotated_race_fatest_lap": {"enabled": False, "session": "R"},
     "driver_laptimes_distribution": {"enabled": False, "session": "R"},
     "driver_laptimes_scatterplot": {"enabled": False, "session": "R"},
     "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"},
     "team_pace_ranking": {"enabled": False, "session": "R"},
     "driver_fuel_corrected_laptimes_scatterplot": {"enabled": False, "session": "R"},
+    # SQ
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }
 FOLDER_PATH = "../Pic"
