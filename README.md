@@ -27,7 +27,7 @@ f1.data.analysis [Link](https://www.instagram.com/f1.data.analysis/)
    - Ensure you have a Python environment installed.
    - Install the necessary libraries:
      ```bash
-     pip install fastf1 matplotlib customtkinter
+     pip install -r requirements.txt
      ```
    - (If auto-posting to Instagram is needed) Configure the Instagram login credentials and relevant APIs required by `auto_ig_post.py`.
 
