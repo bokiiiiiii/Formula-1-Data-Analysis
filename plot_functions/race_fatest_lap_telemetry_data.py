@@ -220,17 +220,7 @@ def race_fatest_lap_telemetry_data(
             )
             driver_data_dict["lap_time_str_list"].append(lap_time_str_val)
 
-            # Determine linestyle (only if teams are different and it's the second driver)
-            # This requires knowing both drivers' teams.
-            team1_name = (
-                driver_data_dict["compared_laps_objects"][0]["Team"]
-                if driver_data_dict["compared_laps_objects"]
-                else ""
-            )
-            team2_name = lap_obj["Team"] if i == 1 else team1_name
-            are_same_team = team1_name == team2_name if i == 1 and team1_name else False
-
-            linestyle_val = "--" if i == 1 and are_same_team else "-"
+            linestyle_val = "-"
 
             plot_speed_data_styled(
                 axes[0],
