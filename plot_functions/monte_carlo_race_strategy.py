@@ -8,8 +8,11 @@ import textwrap
 import os
 import warnings
 import itertools
+import scienceplots
 from scipy import stats
 from matplotlib.ticker import MaxNLocator
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 # Advanced Fitting
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -98,20 +101,16 @@ def create_styled_caption_monte_carlo(
         "🏎️",
         f"« {year_val} {event_name_val} Grand Prix »",
         "",
-        f"• Comprehensive Strategy Analysis ({driver})",
-        f"• Focus: Monte Carlo Simulations Top 5 Options vs Actual",
+        f"• {driver} Race Analysis: Monte Carlo Simulations Top 5 Options vs Actual",
         "",
         f"‣ Simulation Details:",
-        f"\t◦ Driver: {driver} (P1)",
-        f"\t◦ Range: 1-Stop & 2-Stop Combinations",
+        f"\t◦ Driver: {driver}",
         f"\t◦ Iterations: {n_sims} runs per strategy",
-        f"\t◦ Recommended (Robust): {best_strategy_name}",
+        f"\t◦ Recommended: {best_strategy_name}",
         "",
         "‣ Advanced Models:",
         f"\t◦ Fuel Correction Factor: {fuel_k:.3f}s/lap",
-        f"\t◦ Avg Pit Loss (Calc): {pit_loss:.1f}s",
-        "\t◦ Soft Tyre 'Cliff' Logic Enforced",
-        "\t◦ Inventory: Adaptive (Max of Q3 Default vs Actual Used)",
+        f"\t◦ Avg Pit Loss: {pit_loss:.1f}s",
         "",
         f"#F1 #Formula1 #{event_name_val.replace(' ', '')}GP #MonteCarlo #StrategyAnalysis",
     ]
@@ -490,7 +489,13 @@ class RaceStrategySimulator:
 def plot_strategy_distribution_styled(
     ax, results_dict, total_laps, driver_actual_text, driver_abbr
 ):
-    colors = sns.color_palette("husl", len(results_dict))
+    # Use SciencePlots compatible colors
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
+    # Ensure enough colors
+    while len(colors) < len(results_dict):
+        colors += colors
+
     sorted_items = sorted(results_dict.items(), key=lambda x: np.percentile(x[1], 50))
 
     for idx, (name, data) in enumerate(sorted_items):
@@ -507,25 +512,26 @@ def plot_strategy_distribution_styled(
         )
         median_val = np.median(data)
         ax.axvline(
-            median_val, color=colors[idx], linestyle="--", linewidth=1.0, alpha=0.9
+            median_val, color=colors[idx], linestyle="--", linewidth=1.5, alpha=0.9
         )
 
-    ax.set_xlabel("Total Race Time (s)", fontsize=20, color="black", fontweight="bold")
-    ax.set_ylabel(r"Probability (\%)", fontsize=20, color="black", fontweight="bold")
-    ax.tick_params(
-        axis="both", which="major", labelsize=16, colors="black", width=1.5, length=5
-    )
+    ax.set_xlabel("Total Race Time (s)", fontsize=14, color="black")
+    ax.set_ylabel(r"Probability (\%)", fontsize=14, color="black")
+    ax.tick_params(axis="both", which="major", colors="black")
+
+    # Matched Grid Style
     ax.grid(True, which="major", linestyle="--", linewidth=0.5, alpha=0.5, zorder=0)
 
+    # Matched Legend Style
     leg = ax.legend(
         title=f"{driver_abbr} Top 5 Options",
         loc="upper right",
-        fontsize=12,
-        title_fontsize=14,
+        fontsize=10,
+        title_fontsize=12,
         frameon=True,
-        facecolor="white",
-        edgecolor="none",
-        framealpha=0.9,
+        facecolor=ax.get_facecolor(),
+        edgecolor=ax.get_facecolor(),
+        framealpha=0.5,
         labelcolor="black",
     )
     leg.get_title().set_color("black")
@@ -536,7 +542,7 @@ def plot_strategy_distribution_styled(
             0.98,
             driver_actual_text,
             transform=ax.transAxes,
-            fontsize=14,
+            fontsize=12,
             verticalalignment="top",
             fontfamily="monospace",
             color="black",
@@ -552,11 +558,10 @@ def plot_strategy_distribution_styled(
 def monte_carlo_race_strategy(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    try:
-        plt.style.use(["science", "bright"])
-    except OSError:
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["figure.facecolor"] = "white"
+    # Matched Context Setup
+    fastf1.plotting.setup_mpl(
+        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
+    )
 
     load_race_data(race)
 
@@ -612,27 +617,33 @@ def monte_carlo_race_strategy(
     top_5_results = {name: all_results[name] for name in sorted_strategies[:5]}
     best_strategy_name = sorted_strategies[0]
 
-    # 6. Plotting (Original Format)
-    fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
+    # 6. Plotting with Matched Style
+    with plt.style.context(["science", "bright"]):
+        plt.rcParams["figure.dpi"] = DPI
+        plt.rcParams["savefig.dpi"] = DPI
+        plt.rcParams["figure.autolayout"] = False
+        plt.rcParams["figure.constrained_layout.use"] = False
+        plt.rcParams["savefig.bbox"] = None
 
-    plot_strategy_distribution_styled(
-        ax, top_5_results, total_laps_real, actual_strategy_str, winner_abbr
-    )
+        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("white")
 
-    suptitle_text_global = (
-        f"{year} {event_name} GP: {winner_abbr} Race Strategy Analysis"
-    )
-    subtitle_text_global = f"Monte Carlo Simulations Top 5 Options vs Actual Choice"
+        plot_strategy_distribution_styled(
+            ax, top_5_results, total_laps_real, actual_strategy_str, winner_abbr
+        )
 
-    plt.suptitle(suptitle_text_global, fontsize=25, color="black", fontweight="bold")
-    plt.figtext(
-        0.5, 0.93, subtitle_text_global, ha="center", fontsize=18, color="black"
-    )
+        # Titles Matched to Code 2 Format
+        suptitle_text_global = (
+            f"{year} {event_name} Grand Prix: {winner_abbr} Race Strategy Analysis"
+        )
+        subtitle_upper = f"Monte Carlo Simulations Top 5 Options vs Actual Choice"
 
-    filename = save_plot_and_get_filename(fig, suptitle_text_global, DPI)
-    plt.close(fig)
+        plt.suptitle(suptitle_text_global, fontsize=18, color="black")
+        plt.figtext(0.5, 0.94, subtitle_upper, ha="center", fontsize=15, color="black")
+
+        filename = save_plot_and_get_filename(fig, suptitle_text_global, DPI)
+        plt.close(fig)
 
     caption = create_styled_caption_monte_carlo(
         year,
@@ -645,7 +656,3 @@ def monte_carlo_race_strategy(
         pit_loss_real,
     )
     return {"filename": filename, "caption": caption, "post": post}
-
-
-if __name__ == "__main__":
-    print("Code Structure with Original Plotting Format Loaded.")
