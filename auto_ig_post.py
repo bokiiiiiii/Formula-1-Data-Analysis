@@ -3,6 +3,10 @@ import time
 import os
 from playwright.sync_api import sync_playwright
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def auto_ig_post(image_path: str, caption: str) -> None:
     """Automate Instagram post using Playwright."""
@@ -18,7 +22,7 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         """Log in to Instagram."""
         page.goto("https://www.instagram.com/?hl=zh-tw")
         time.sleep(1)
-
+        page.get_by_role("button", name="允許所有 Cookie").click()
         page.fill('input[name="username"]', username)
         page.fill('input[name="password"]', password)
         page.click('button[type="submit"]')
@@ -73,3 +77,7 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         finally:
             context.close()
             browser.close()
+
+
+if __name__ == "__main__":
+    auto_ig_post("image_path", "caption")
