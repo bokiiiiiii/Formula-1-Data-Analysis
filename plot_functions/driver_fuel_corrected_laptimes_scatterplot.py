@@ -11,8 +11,8 @@ import numpy as np
 import scienceplots
 import matplotlib
 
-QUICKLAP_THRESHOLD = 1.07
-CORRECTED_LAPTIME_PER_LAP = 0.05
+QUICKLAP_THRESHOLD = 1.05
+CORRECTED_LAPTIME_PER_LAP = 0.10
 MARKERS = [".", "*"]
 LINES = ["-", "--"]
 

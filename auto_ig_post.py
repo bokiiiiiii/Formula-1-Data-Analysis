@@ -2,7 +2,6 @@ import re
 import time
 import os
 from playwright.sync_api import sync_playwright
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,7 +10,6 @@ load_dotenv()
 def auto_ig_post(image_path: str, caption: str) -> None:
     """Automate Instagram post using Playwright."""
 
-    # Fetching credentials from environment variables
     username = os.environ.get("INSTAGRAM_USERNAME")
     password = os.environ.get("INSTAGRAM_PASSWORD")
 
@@ -21,25 +19,39 @@ def auto_ig_post(image_path: str, caption: str) -> None:
     def login(page):
         """Log in to Instagram."""
         page.goto("https://www.instagram.com/?hl=zh-tw")
-        time.sleep(1)
-        page.get_by_role("button", name="允許所有 Cookie").click()
+        time.sleep(2)
+
+        try:
+            page.get_by_role("button", name="允許所有 Cookie").click()
+        except:
+            pass
+
         page.fill('input[name="username"]', username)
         page.fill('input[name="password"]', password)
         page.click('button[type="submit"]')
         time.sleep(5)
 
-        # Handle pop-ups
         try:
             page.get_by_role("button", name="稍後再說").click()
-            time.sleep(3)
+            time.sleep(2)
             page.get_by_role("button", name="稍後再說").click()
-            time.sleep(3)
+            time.sleep(2)
         except:
             pass
 
     def upload_post(page):
         """Upload the post to Instagram."""
-        page.get_by_role("link", name="新貼文 建立").click()
+        time.sleep(3)
+        try:
+            page.get_by_role("button", name="確定").click()
+        except:
+            pass
+        time.sleep(3)
+        try:
+            page.get_by_role("link", name="新貼文 建立").click()
+        except:
+            page.get_by_role("link", name="建立", exact=True).click()
+
         page.get_by_role("link", name="貼文 貼文").click()
         time.sleep(3)
 
@@ -54,19 +66,22 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         time.sleep(3)
 
         page.get_by_role("button", name="下一步").click()
+        time.sleep(2)
         page.get_by_role("button", name="下一步").click()
         time.sleep(3)
 
         page.get_by_role("paragraph").click()
         page.get_by_label("撰寫說明文字……").fill(caption)
-        time.sleep(10)
+        time.sleep(5)
 
         page.get_by_role("button", name="分享", exact=True).click()
         time.sleep(10)
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=False)
-        context = browser.new_context()
+
+        context = browser.new_context(viewport={"width": 1920, "height": 1080})
+
         page = context.new_page()
 
         try:
@@ -80,4 +95,4 @@ def auto_ig_post(image_path: str, caption: str) -> None:
 
 
 if __name__ == "__main__":
-    auto_ig_post("image_path", "caption")
+    auto_ig_post("C:/path/to/your/image.jpg", "This is a test caption")

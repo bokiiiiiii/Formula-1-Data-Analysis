@@ -25,7 +25,8 @@ warnings.filterwarnings("ignore")
 # Global Constants
 DPI = 125
 FIG_SIZE = (1080 / DPI, 1350 / DPI)
-DEFAULT_CORRECTION = 0.06
+DEFAULT_CORRECTION = 0.05
+DEFAULT_PIT_LOSS = 22.0
 
 # Default Data Fallbacks
 DEFAULT_STINT_STATS = {
@@ -210,7 +211,7 @@ def calculate_actual_stint_stats(race):
 def calculate_avg_pit_loss(race):
     laps = race.laps.pick_accurate().pick_track_status("1")
     if laps.empty:
-        return 22.0
+        return DEFAULT_PIT_LOSS
 
     base_pace = (
         laps[laps["PitInTime"].isna() & laps["PitOutTime"].isna()]["LapTime"]
@@ -218,7 +219,7 @@ def calculate_avg_pit_loss(race):
         .median()
     )
     if np.isnan(base_pace):
-        return 22.0
+        return DEFAULT_PIT_LOSS
 
     in_loss = (
         laps[~laps["PitInTime"].isna()]["LapTime"].dt.total_seconds() - base_pace
@@ -232,8 +233,8 @@ def calculate_avg_pit_loss(race):
     )
 
     if np.isnan(total) or total < 15 or total > 40:
-        return 22.0
-    return total
+        return DEFAULT_PIT_LOSS
+    return total + 100
 
 
 def optimize_fuel_correction(laps_df):
@@ -304,9 +305,15 @@ def calculate_race_degradation_curves(race, stint_stats):
             y = c_laps["FuelCorrected"].values.reshape(-1, 1)
 
             scaler_X, scaler_y = StandardScaler(), StandardScaler()
+
+            kernel = C(1.0, (1e-3, 1e3)) * RBF(
+                length_scale=10.0, length_scale_bounds=(1.0, 50.0)
+            ) + WhiteKernel(noise_level=0.1, noise_level_bounds=(1e-3, 0.7))
+
             gpr = GaussianProcessRegressor(
-                kernel=C(1.0) * RBF(1.0) + WhiteKernel(0.1), n_restarts_optimizer=5
+                kernel=kernel, n_restarts_optimizer=50, alpha=0.0
             )
+
             gpr.fit(scaler_X.fit_transform(X), scaler_y.fit_transform(y))
 
             pred = scaler_y.inverse_transform(
@@ -426,8 +433,8 @@ class RaceStrategySimulator:
         self.fuel_k = fuel_correction_factor
         self.lap_time_std = lap_time_std
 
-    def simulate_strategy(self, strategy_name, compounds, pit_laps, n_sims=1000):
-        total_race_times = np.zeros(n_sims) + 4.5  # Standing start loss
+    def simulate_strategy(self, strategy_name, compounds, pit_laps, n_sims=10000):
+        total_race_times = np.zeros(n_sims) + 6.0  # Standing start loss
 
         # Pre-calculate SC params
         has_sc = np.random.rand(n_sims) < 0.4
@@ -448,8 +455,8 @@ class RaceStrategySimulator:
                 total_race_times += loss + np.random.exponential(0.6, n_sims)
 
                 # Traffic injection
-                caught = np.random.rand(n_sims) < 0.6
-                traffic_penalty[caught] += np.random.randint(3, 8, np.sum(caught))
+                caught = np.random.rand(n_sims) < 0.2
+                traffic_penalty[caught] += np.random.randint(1, 5, np.sum(caught))
 
                 stint_idx += 1
                 current_tyre = (

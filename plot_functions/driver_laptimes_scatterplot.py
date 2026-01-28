@@ -12,7 +12,7 @@ import scienceplots
 import matplotlib
 
 # Parameters
-QUICKLAP_THRESHOLD = 1.07
+QUICKLAP_THRESHOLD = 1.05
 MARKERS = [".", "*"]
 LINES = ["-", "--"]
 

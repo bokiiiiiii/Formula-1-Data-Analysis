@@ -10,7 +10,7 @@ from scipy.interpolate import make_interp_spline
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
-QUICKLAP_THRESHOLD = 1.07
+QUICKLAP_THRESHOLD = 1.05
 BOXPLOT_WIDTH = 0.5
 B_SPLINE_DEG = 2
 
