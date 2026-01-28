@@ -2,43 +2,35 @@ import matplotlib
 
 matplotlib.use("Agg")  # Prevent Tcl/Tk errors
 
-import seaborn as sns
-from matplotlib import pyplot as plt
-import fastf1
-import fastf1.plotting
-import pandas as pd
 import textwrap
 import numpy as np
 import scipy.ndimage as ndimage
+from matplotlib import pyplot as plt
 import scienceplots
-import warnings
 
-# Configuration
-warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
-warnings.filterwarnings("ignore", category=UserWarning, module="fastf1")
+from . import utils
+from logger_config import get_logger
 
-# Global constants (Matching Reference exactly)
-DPI = 125
-FIG_SIZE = (1080 / DPI, 1350 / DPI)
+# Logger
+logger = get_logger(__name__)
+
+# Configuration constants
 SMOOTHING_SIGMA = [8, 1]
 CONTOUR_STEP = 50  # km/h
+PLOT_CONFIG = utils.PlotConfig()
 
 
-def load_race_data(race):
-    try:
-        race.load(telemetry=True, laps=True, weather=False)
-    except Exception as e:
-        raise RuntimeError(f"Error loading race data: {e}")
+def prepare_contour_data(race, driver_abbr: str, dist_bins: int = 800):
+    """Interpolates telemetry data onto a structured grid.
 
+    Args:
+        race: FastF1 session object
+        driver_abbr: Driver abbreviation
+        dist_bins: Number of distance bins for interpolation
 
-def get_winner_abbr(race):
-    if race.results is None or race.results.empty:
-        return []
-    return list(race.results["Abbreviation"][:1])
-
-
-def prepare_contour_data(race, driver_abbr, dist_bins=800):
-    """Interpolates telemetry data onto a structured grid."""
+    Returns:
+        Tuple of (matrix, lap_numbers, dist_axis) or (None, None, None) if data unavailable
+    """
     try:
         driver_laps = race.laps.pick_driver(driver_abbr).pick_quicklaps(threshold=1.15)
     except Exception:
@@ -134,12 +126,17 @@ def plot_contour(ax, matrix, x_vals, y_vals):
     cbar.add_lines(contour_lines)
 
 
-def save_plot(fig, title):
-    filename_safe = title.replace(" ", "_").replace(":", "").replace("/", "_")
-    path = f"../pic/{filename_safe}.png"
-    # Note: Do NOT use bbox_inches='tight' if you want exact dimensions
-    fig.savefig(path, dpi=DPI)
-    return path
+def save_plot(fig, title: str) -> str:
+    """Save plot to file.
+
+    Args:
+        fig: Matplotlib figure
+        title: Title for the plot (used to generate filename)
+
+    Returns:
+        Path to saved file
+    """
+    return utils.save_plot(fig, title, PLOT_CONFIG)
 
 
 def generate_caption(year, event, driver, main_title, lower_title):
@@ -165,41 +162,51 @@ def generate_caption(year, event, driver, main_title, lower_title):
 def driver_race_evolution_heatmap(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    # Initialization
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
-    load_race_data(race)
+    """Generate a heatmap showing driver's race evolution.
 
-    target_drivers = get_winner_abbr(race)
-    if not target_drivers:
-        return {"filename": None, "caption": "No results found.", "post": False}
+    Args:
+        year: Season year
+        event_name: Grand Prix name
+        session_name: Session type (e.g., "R" for Race)
+        race: FastF1 session object
+        post: Whether to post to Instagram
 
-    driver_abbr = target_drivers[0]
-    print(f"Processing contour data for {driver_abbr}...")
-
-    matrix, laps, dists = prepare_contour_data(race, driver_abbr)
-    if matrix is None:
-        return {
-            "filename": None,
-            "caption": f"No valid data for {driver_abbr}.",
-            "post": False,
-        }
-
-    # Plotting context
+    Returns:
+        Dictionary with plot information
+    """
     try:
-        with plt.style.context(["science", "bright"]):
-            # --- CRITICAL: Enforce exact dimensions like Reference Code ---
-            plt.rcParams["figure.dpi"] = DPI
-            plt.rcParams["savefig.dpi"] = DPI
-            plt.rcParams["figure.autolayout"] = False
-            plt.rcParams["figure.constrained_layout.use"] = False
-            plt.rcParams["savefig.bbox"] = None
-            # -----------------------------------------------------------
+        # Setup
+        utils.setup_matplotlib_style(PLOT_CONFIG)
+        utils.load_race_data(
+            race, telemetry=True, laps=True, weather=False, logger_obj=logger
+        )
 
-            fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-            fig.patch.set_facecolor("white")
-            ax.set_facecolor("white")
+        # Get winner
+        target_drivers = utils.get_driver_abbreviations(
+            race, num_drivers=1, logger_obj=logger
+        )
+        if not target_drivers:
+            logger.warning(f"No results found for {year} {event_name}")
+            return utils.create_plot_return_dict(None, "No results found.", post, False)
+
+        driver_abbr = target_drivers[0]
+        logger.info(f"Processing contour data for {driver_abbr}...")
+
+        # Prepare data
+        matrix, laps, dists = prepare_contour_data(race, driver_abbr)
+        if matrix is None:
+            logger.warning(f"No valid data for {driver_abbr}")
+            return utils.create_plot_return_dict(
+                None,
+                f"No valid data for {driver_abbr}.",
+                post,
+                False,
+            )
+
+        # Create and configure figure
+        with plt.style.context(["science", "bright"]):
+            utils.setup_matplotlib_style(PLOT_CONFIG)
+            fig, ax = utils.create_figure_and_axis(PLOT_CONFIG)
 
             plot_contour(ax, matrix, laps, dists)
             title_main, title_lower = configure_plot_style(
@@ -212,9 +219,11 @@ def driver_race_evolution_heatmap(
             caption = generate_caption(
                 year, event_name, driver_abbr, title_main, title_lower
             )
-            return {"filename": filename, "caption": caption, "post": post}
+            return utils.create_plot_return_dict(filename, caption, post, True)
 
     except Exception as e:
-        print(f"Plotting failed: {e}")
-        plt.close("all")
-        return {"filename": None, "caption": "Plot generation failed.", "post": False}
+        logger.error(f"Plotting failed: {str(e)}", exc_info=True)
+        utils.safe_close_figures()
+        return utils.create_plot_return_dict(
+            None, "Plot generation failed.", post, False
+        )

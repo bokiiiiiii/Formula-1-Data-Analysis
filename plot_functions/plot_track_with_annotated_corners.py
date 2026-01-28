@@ -7,34 +7,37 @@ import scienceplots
 import matplotlib
 
 from fastf1.ergast import Ergast
+from logger_config import get_logger
+
+logger = get_logger(__name__)
 
 suptitle_text_global = ""
 
 all_country_name = {
-    "Bahrain": "Bahrain",
-    "Saudi Arabian": "Saudi Arabia",
-    "Australian": "Australia",
-    "Japanese": "Japan",
-    "Chinese": "China",
-    "Miami": "USA",
-    "Emilia Romagna": "Italy",
-    "Monaco": "Monaco",
-    "Canadian": "Canada",
-    "Spanish": "Spain",
-    "Austrian": "Austria",
-    "British": "UK",
-    "Hungarian": "Hungary",
-    "Belgian": "Belgium",
-    "Dutch": "Netherlands",
-    "Italian": "Italy",
-    "Azerbaijan": "Azerbaijan",
-    "Singapore": "Singapore",
-    "United States": "USA",
-    "Mexico": "Mexico",
-    "São Paulo": "Brazil",
-    "Las Vegas": "USA",
-    "Qatar": "Qatar",
-    "Abu Dhabi": "UAE",
+    "Bahrain Grand Prix": "Bahrain",
+    "Saudi Arabian Grand Prix": "Saudi Arabia",
+    "Australian Grand Prix": "Australia",
+    "Japanese Grand Prix": "Japan",
+    "Chinese Grand Prix": "China",
+    "Miami Grand Prix": "USA",
+    "Emilia Romagna Grand Prix": "Italy",
+    "Monaco Grand Prix": "Monaco",
+    "Canadian Grand Prix": "Canada",
+    "Spanish Grand Prix": "Spain",
+    "Austrian Grand Prix": "Austria",
+    "British Grand Prix": "UK",
+    "Hungarian Grand Prix": "Hungary",
+    "Belgian Grand Prix": "Belgium",
+    "Dutch Grand Prix": "Netherlands",
+    "Italian Grand Prix": "Italy",
+    "Azerbaijan Grand Prix": "Azerbaijan",
+    "Singapore Grand Prix": "Singapore",
+    "United States Grand Prix": "USA",
+    "Mexico City Grand Prix": "Mexico",
+    "São Paulo Grand Prix": "Brazil",
+    "Las Vegas Grand Prix": "USA",
+    "Qatar Grand Prix": "Qatar",
+    "Abu Dhabi Grand Prix": "UAE",
 }
 
 
@@ -63,17 +66,20 @@ def get_circuit_info_by_country_name(year_val, event_name_val):
     country_name_to_find = all_country_name.get(event_name_val)
 
     if not country_name_to_find:
-        print(
-            f"Warning: Country name for event '{event_name_val}' not found in mapping."
+        logger.warning(
+            f"Country name for event '{event_name_val}' not found in mapping. Trying fallback lookup..."
         )
         for circuit_data in allcircuitsinfo:
             if circuit_data["Location"]["locality"].lower() == event_name_val.lower():
                 country_name_to_find = circuit_data["Location"]["country"]
-                print(
+                logger.info(
                     f"Found country '{country_name_to_find}' by locality for event '{event_name_val}'."
                 )
                 break
         if not country_name_to_find:
+            logger.warning(
+                f"Could not find country mapping for '{event_name_val}'. Circuit data unavailable."
+            )
             return None, None, None, None
 
     index = find_circuit_index_by_country(country_name_to_find, allcircuitsinfo)
@@ -83,7 +89,9 @@ def get_circuit_info_by_country_name(year_val, event_name_val):
                 index = idx
                 break
         if index is None:
-            print(f"Circuit info not found for {event_name_val} in year {year_val}.")
+            logger.warning(
+                f"Circuit info not found for {event_name_val} in year {year_val}. Data may not be available yet."
+            )
             return None, None, None, None
 
     circuitsinfo = allcircuitsinfo[index]
@@ -227,7 +235,9 @@ def plot_track_with_annotated_corners(
     )
 
     if circuit_name is None:
-        print(f"Could not retrieve circuit information for {year} {event_name}.")
+        logger.warning(
+            f"Could not retrieve circuit information for {year} {event_name}. Skipping track plot. This is normal for upcoming races or incomplete season data."
+        )
         return {
             "filename": None,
             "caption": "Circuit information not found.",
@@ -237,7 +247,7 @@ def plot_track_with_annotated_corners(
     try:
         lap_for_track = race.laps.pick_fastest()
         if lap_for_track is None or lap_for_track.empty:
-            print(
+            logger.warning(
                 f"No fastest lap data available for {year} {event_name} {session_name}."
             )
             return {
@@ -247,7 +257,7 @@ def plot_track_with_annotated_corners(
             }
         pos_data = lap_for_track.get_pos_data()
         if pos_data.empty:
-            print(
+            logger.warning(
                 f"No telemetry position data for fastest lap in {year} {event_name} {session_name}."
             )
             return {
@@ -257,7 +267,7 @@ def plot_track_with_annotated_corners(
             }
 
     except Exception as e:
-        print(f"Error getting lap/position data: {e}")
+        logger.error(f"Error getting lap/position data: {e}")
         return {
             "filename": None,
             "caption": "Error processing lap data.",

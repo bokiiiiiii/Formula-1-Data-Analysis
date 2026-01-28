@@ -19,6 +19,12 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel as C
 from sklearn.preprocessing import StandardScaler
 
+# Import track-specific data
+from track_data import (
+    get_safety_car_probability,
+    get_fuel_consumption_factor,
+)
+
 # Filter warnings
 warnings.filterwarnings("ignore")
 
@@ -426,18 +432,20 @@ class RaceStrategySimulator:
         pit_loss,
         lap_time_std=0.3,
         fuel_correction_factor=0.06,
+        sc_probability=0.40,  # NEW: Configurable SC probability
     ):
         self.total_laps = int(total_laps)
         self.pit_loss = pit_loss
         self.deg_curves = deg_curves
         self.fuel_k = fuel_correction_factor
         self.lap_time_std = lap_time_std
+        self.sc_prob = sc_probability  # Store SC probability
 
     def simulate_strategy(self, strategy_name, compounds, pit_laps, n_sims=10000):
         total_race_times = np.zeros(n_sims) + 6.0  # Standing start loss
 
-        # Pre-calculate SC params
-        has_sc = np.random.rand(n_sims) < 0.4
+        # Pre-calculate SC params - NOW USING DYNAMIC PROBABILITY
+        has_sc = np.random.rand(n_sims) < self.sc_prob
         sc_start = np.random.randint(2, self.total_laps - 5, n_sims)
         sc_dur = np.random.randint(3, 6, n_sims)
 
@@ -600,14 +608,22 @@ def monte_carlo_race_strategy(
         if validate_strategy_with_inventory(s["compounds"], actual_used_counts)
     ]
 
-    # 4. Simulation
-    N_SIMS = 1000
+    # 4. Get track-specific parameters
+    sc_prob = get_safety_car_probability(event_name)
+    fuel_factor = get_fuel_consumption_factor(event_name)
+
+    # Apply track-specific fuel correction
+    fuel_k_adjusted = fuel_k * fuel_factor
+
+    # 4. Simulation with dynamic SC probability
+    N_SIMS = 10000
     simulator = RaceStrategySimulator(
         deg_curves=deg_curves,
         total_laps=total_laps_real,
         pit_loss=pit_loss_real,
         lap_time_std=0.4,
-        fuel_correction_factor=fuel_k,
+        fuel_correction_factor=fuel_k_adjusted,
+        sc_probability=sc_prob,  # NEW: Track-specific SC probability
     )
 
     all_results = {}
