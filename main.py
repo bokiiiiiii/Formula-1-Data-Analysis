@@ -154,6 +154,11 @@ FUNC_PARAMS = {
     "race_fatest_lap_telemetry_data": {"enabled": False, "session": "R"},
     "team_pace_ranking": {"enabled": False, "session": "R"},
     "driver_fuel_corrected_laptimes_scatterplot": {"enabled": False, "session": "R"},
+    "driver_fuel_corrected_laptimes_gaussian_processes": {
+        "enabled": False,
+        "session": "R",
+    },
+    "monte_carlo_race_strategy": {"enabled": False, "session": "R"},
     # SQ
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
 }
