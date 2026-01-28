@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
 warnings.filterwarnings("ignore", category=UserWarning, module="fastf1")
 
 QUICKLAP_THRESHOLD = 1.05
-DEFAULT_CORRECTION = 0.05
+DEFAULT_CORRECTION = 0.10
 MARKERS = ["."]
 LINES = ["-"]
 
@@ -243,11 +243,11 @@ def plot_stint_compound_trendlines_styled(
         y = group["FuelCorrectedLapTime(s)"].values
 
         kernel = C(1.0, (1e-3, 1e3)) * RBF(
-            length_scale=10.0, length_scale_bounds=(1.0, 30.0)
-        ) + WhiteKernel(noise_level=0.1, noise_level_bounds=(1e-3, 0.5))
+            length_scale=10.0, length_scale_bounds=(1.0, 50.0)
+        ) + WhiteKernel(noise_level=0.1, noise_level_bounds=(1e-3, 0.7))
 
         gpr = GaussianProcessRegressor(
-            kernel=kernel, n_restarts_optimizer=20, alpha=0.0
+            kernel=kernel, n_restarts_optimizer=50, alpha=0.0
         )
 
         try:

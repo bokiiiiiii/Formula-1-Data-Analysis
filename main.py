@@ -11,8 +11,8 @@ from auto_ig_post import auto_ig_post
 from plot_functions import *
 
 YEAR = 2025
-SESSION_NAME = "FP1+Q+R"
-ENABLE_ALL = False
+SESSION_NAME = "R"
+ENABLE_ALL = True
 
 ALL_EVENT_OPTIONS = [
     "Bahrain",
@@ -158,6 +158,7 @@ FUNC_PARAMS = {
         "enabled": False,
         "session": "R",
     },
+    "driver_race_evolution_heatmap": {"enabled": False, "session": "R"},
     "monte_carlo_race_strategy": {"enabled": False, "session": "R"},
     # SQ
     "annotated_sprint_qualifying_flying_lap": {"enabled": False, "session": "SQ"},
