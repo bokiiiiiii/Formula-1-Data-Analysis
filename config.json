@@ -1,0 +1,64 @@
+{
+  "year": 2025,
+  "session_name": "R",
+  "enable_all": true,
+  "folder_path": "../pic",
+  "cache_path": "../cache",
+  "log_level": "INFO",
+  "log_dir": "./logs",
+  "plot_functions": {
+    "plot_track_with_annotated_corners": {
+      "enabled": true,
+      "session": "FP1"
+    },
+    "annotated_qualifying_flying_lap": {
+      "enabled": true,
+      "session": "Q"
+    },
+    "annotated_race_fatest_lap": {
+      "enabled": true,
+      "session": "R"
+    },
+    "driver_laptimes_distribution": {
+      "enabled": true,
+      "session": "R"
+    },
+    "driver_laptimes_scatterplot": {
+      "enabled": true,
+      "session": "R"
+    },
+    "race_fatest_lap_telemetry_data": {
+      "enabled": true,
+      "session": "R"
+    },
+    "team_pace_ranking": {
+      "enabled": true,
+      "session": "R"
+    },
+    "driver_fuel_corrected_laptimes_scatterplot": {
+      "enabled": true,
+      "session": "R"
+    },
+    "driver_fuel_corrected_laptimes_gaussian_processes": {
+      "enabled": true,
+      "session": "R"
+    },
+    "driver_race_evolution_heatmap": {
+      "enabled": true,
+      "session": "R"
+    },
+    "monte_carlo_race_strategy": {
+      "enabled": true,
+      "session": "R"
+    },
+    "annotated_sprint_qualifying_flying_lap": {
+      "enabled": true,
+      "session": "SQ"
+    }
+  },
+  "instagram_enabled": false,
+  "instagram_delay_seconds": 60,
+  "figure_dpi": 125,
+  "figure_width": 8.64,
+  "figure_height": 10.8
+}

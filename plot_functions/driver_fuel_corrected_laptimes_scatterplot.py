@@ -10,9 +10,11 @@ import textwrap
 import numpy as np
 import scienceplots
 import matplotlib
+from . import utils
+from .utils import COMPOUND_COLORS, get_compound_color
 
-QUICKLAP_THRESHOLD = 1.07
-CORRECTED_LAPTIME_PER_LAP = 0.05
+QUICKLAP_THRESHOLD = 1.05
+CORRECTED_LAPTIME_PER_LAP = 0.10
 MARKERS = [".", "*"]
 LINES = ["-", "--"]
 
@@ -21,18 +23,8 @@ subtitle_lower_text_global = ""
 
 
 def load_race_data(race):
-    try:
-        race.load()
-    except Exception as e:
-        raise RuntimeError(f"Error loading race data: {e}")
-
-
-def get_podium_finishers_abbr(race):
-    results = race.results
-    if results is None or results.empty:
-        print("Warning: Results are empty. Cannot pick finishers.")
-        return []
-    return list(results["Abbreviation"][: min(len(results), 2)])
+    """No-op: Session data is already loaded by PlotRunner."""
+    pass
 
 
 def get_driver_laps_cleaned_fuel_corrected(race, driver_abbr):
@@ -105,7 +97,7 @@ def plot_driver_laps_styled_fuel_corrected(
         y="FuelCorrectedLapTime(s)",
         ax=ax,
         hue="Compound",
-        palette={**fastf1.plotting.COMPOUND_COLORS, "UNKNOWN": "black"},
+        palette={**COMPOUND_COLORS, "UNKNOWN": "black"},
         hue_order=["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET", "UNKNOWN"],
         marker=MARKERS[driver_idx % len(MARKERS)],
         s=60,
@@ -134,7 +126,7 @@ def plot_stint_compound_trendlines_styled(
             continue
 
         reg_color = (
-            fastf1.plotting.COMPOUND_COLORS.get(compound_name, assigned_color)
+            COMPOUND_COLORS.get(compound_name, assigned_color)
             if compound_name != "HARD"
             else "grey"
         )
@@ -394,14 +386,12 @@ def process_driver_data_single_fuel_corrected(
 def driver_fuel_corrected_laptimes_scatterplot(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
-    DPI = 125
+    utils.setup_fastf1_plotting()
+    DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
     load_race_data(race)
-    drivers_to_plot_abbrs = get_podium_finishers_abbr(race)
+    drivers_to_plot_abbrs = utils.get_podium_finishers(race)
     if not drivers_to_plot_abbrs:
         return {"filename": None, "caption": "Not enough data for plot.", "post": False}
 
@@ -472,15 +462,9 @@ def driver_fuel_corrected_laptimes_scatterplot(
         if global_plot_range_y_val <= 0:
             global_plot_range_y_val = 1.0
 
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
 
         prop_cycle = plt.rcParams["axes.prop_cycle"]
@@ -562,7 +546,7 @@ def driver_fuel_corrected_laptimes_scatterplot(
                     [0],
                     marker="o",
                     markersize=6,
-                    color=fastf1.plotting.COMPOUND_COLORS.get(c, "black"),
+                    color=COMPOUND_COLORS.get(c, "black"),
                     label=c.capitalize(),
                     linestyle="None",
                 )
@@ -663,7 +647,7 @@ def driver_fuel_corrected_laptimes_scatterplot(
                 )
 
                 compound_text_color = (
-                    fastf1.plotting.COMPOUND_COLORS.get(compound, "black")
+                    COMPOUND_COLORS.get(compound, "black")
                     if compound != "HARD"
                     else "grey"
                 )

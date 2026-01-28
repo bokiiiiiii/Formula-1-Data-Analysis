@@ -9,14 +9,14 @@ import matplotlib
 from scipy.interpolate import make_interp_spline
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
+from . import utils
 
-QUICKLAP_THRESHOLD = 1.07
+QUICKLAP_THRESHOLD = 1.05
 BOXPLOT_WIDTH = 0.5
 B_SPLINE_DEG = 2
 
 
 def load_and_process_race_data(race):
-    race.load()
     laps = race.laps.pick_quicklaps(QUICKLAP_THRESHOLD)
     transformed_laps = laps.copy()
     transformed_laps.loc[:, "LapTime (s)"] = laps["LapTime"].dt.total_seconds()
@@ -203,11 +203,9 @@ def generate_styled_caption(year, event_name, suptitle_display_text):
 def team_pace_ranking(
     year: int, event_name: str, session_name: str, race_data, post: bool
 ) -> dict:
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
+    utils.setup_fastf1_plotting()
 
-    DPI = 125
+    DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
     transformed_laps = load_and_process_race_data(race_data)
@@ -224,15 +222,9 @@ def team_pace_ranking(
     team_order = compute_team_order_by_median(transformed_laps)
     team_palette = generate_team_color_palette(team_order, race_data)
 
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
 
         plot_team_pace_ranking_styled(ax, transformed_laps, team_order, team_palette)

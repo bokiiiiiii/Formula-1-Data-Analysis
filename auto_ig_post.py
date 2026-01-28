@@ -1,83 +1,173 @@
-import re
+"""Automatic Instagram posting for F1 analysis plots."""
+
 import time
 import os
+import logging
+from typing import Optional
 from playwright.sync_api import sync_playwright
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
 
-def auto_ig_post(image_path: str, caption: str) -> None:
-    """Automate Instagram post using Playwright."""
+MAX_RETRIES = 3
+RETRY_DELAY = 5
 
-    # Fetching credentials from environment variables
-    username = os.environ.get("INSTAGRAM_USERNAME")
-    password = os.environ.get("INSTAGRAM_PASSWORD")
 
-    if not username or not password:
-        raise ValueError("Instagram credentials are not set in environment variables.")
+class InstagramPoster:
+    """Handle Instagram posting operations."""
 
-    def login(page):
-        """Log in to Instagram."""
-        page.goto("https://www.instagram.com/?hl=zh-tw")
-        time.sleep(1)
-        page.get_by_role("button", name="允許所有 Cookie").click()
-        page.fill('input[name="username"]', username)
-        page.fill('input[name="password"]', password)
-        page.click('button[type="submit"]')
-        time.sleep(5)
+    def __init__(
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        headless: bool = False,
+    ):
+        self.username = username or os.environ.get("INSTAGRAM_USERNAME")
+        self.password = password or os.environ.get("INSTAGRAM_PASSWORD")
+        self.headless = headless
 
-        # Handle pop-ups
+        if not self.username or not self.password:
+            raise ValueError(
+                "Instagram credentials not set. "
+                "Set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD environment variables."
+            )
+
+        logger.info("InstagramPoster initialized")
+
+    def _dismiss_popup(self, page, name: str, timeout: int = 5000) -> None:
+        """Try to dismiss a popup button."""
         try:
-            page.get_by_role("button", name="稍後再說").click()
-            time.sleep(3)
-            page.get_by_role("button", name="稍後再說").click()
-            time.sleep(3)
+            page.get_by_role("button", name=name).click(timeout=timeout)
+            time.sleep(2)
         except:
             pass
 
-    def upload_post(page):
-        """Upload the post to Instagram."""
-        page.get_by_role("link", name="新貼文 建立").click()
-        page.get_by_role("link", name="貼文 貼文").click()
-        time.sleep(3)
-
-        page.locator("div").filter(has_text=re.compile(r"^從電腦選擇$")).nth(1).click()
-        time.sleep(3)
-
-        page.set_input_files('input[type="file"]', image_path)
-        time.sleep(3)
-
-        page.locator("button").filter(has_text="選擇「裁切」").click()
-        page.get_by_role("button", name=":5 「裁切成直向」圖示").click()
-        time.sleep(3)
-
-        page.get_by_role("button", name="下一步").click()
-        page.get_by_role("button", name="下一步").click()
-        time.sleep(3)
-
-        page.get_by_role("paragraph").click()
-        page.get_by_label("撰寫說明文字……").fill(caption)
-        time.sleep(10)
-
-        page.get_by_role("button", name="分享", exact=True).click()
-        time.sleep(10)
-
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=False)
-        context = browser.new_context()
-        page = context.new_page()
-
+    def _login(self, page) -> bool:
+        """Log in to Instagram."""
         try:
-            login(page)
-            upload_post(page)
+            logger.info("Starting Instagram login...")
+            page.goto("https://www.instagram.com/accounts/login/?hl=en")
+            time.sleep(5)
+
+            self._dismiss_popup(page, "Allow all cookies")
+
+            page.fill('input[name="email"]', self.username, timeout=10000)
+            page.fill('input[name="pass"]', self.password)
+            page.get_by_role("button", name="Log in", exact=True).click()
+            time.sleep(8)
+
+            self._dismiss_popup(page, "Not now")
+            self._dismiss_popup(page, "Not now")
+
+            logger.info("Login successful")
+            return True
+
         except Exception as e:
-            print(f"An error occurred: {e}")
-        finally:
-            context.close()
-            browser.close()
+            logger.error(f"Login failed: {e}")
+            return False
+
+    def _upload_post(self, page, image_path: str, caption: str) -> bool:
+        """Upload a post to Instagram."""
+        try:
+            logger.info(f"Starting post upload for {image_path}")
+
+            page.locator("a").filter(has_text="Create").first.click()
+            time.sleep(2)
+
+            page.get_by_role("link", name="Post Post").click()
+            time.sleep(3)
+
+            page.set_input_files('input[type="file"]', image_path)
+            time.sleep(3)
+
+            try:
+                page.locator("button").filter(has_text="Select crop").click(
+                    timeout=3000
+                )
+                time.sleep(1)
+                page.get_by_role("button", name="Crop portrait icon").click(
+                    timeout=3000
+                )
+                time.sleep(2)
+            except:
+                pass
+
+            page.get_by_role("button", name="Next").click()
+            time.sleep(2)
+            page.get_by_role("button", name="Next").click()
+            time.sleep(2)
+
+            try:
+                page.get_by_label("Write a caption...").fill(caption)
+            except:
+                page.locator("textarea").first.fill(caption)
+            time.sleep(3)
+
+            page.get_by_role("button", name="Share", exact=True).click()
+            time.sleep(15)
+
+            logger.info("Post shared successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Upload failed: {e}")
+            return False
+
+    def post(self, image_path: str, caption: str, retries: int = MAX_RETRIES) -> bool:
+        """Post an image to Instagram with retry logic."""
+        if not os.path.exists(image_path):
+            logger.error(f"Image file not found: {image_path}")
+            return False
+
+        for attempt in range(retries):
+            try:
+                logger.info(f"Posting to Instagram (attempt {attempt + 1}/{retries})")
+
+                with sync_playwright() as playwright:
+                    browser = playwright.chromium.launch(
+                        headless=self.headless, args=["--start-maximized"]
+                    )
+                    context = browser.new_context(no_viewport=True, locale="en-US")
+                    page = context.new_page()
+
+                    try:
+                        if not self._login(page):
+                            raise Exception("Login failed")
+
+                        if not self._upload_post(page, image_path, caption):
+                            raise Exception("Upload failed")
+
+                        logger.info("Post completed successfully")
+                        return True
+
+                    finally:
+                        context.close()
+                        browser.close()
+
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < retries - 1:
+                    logger.info(f"Retrying in {RETRY_DELAY} seconds...")
+                    time.sleep(RETRY_DELAY)
+
+        logger.error(f"Failed to post after {retries} attempts")
+        return False
+
+
+def auto_ig_post(image_path: str, caption: str, headless: bool = False) -> None:
+    """Post image to Instagram."""
+    poster = InstagramPoster(headless=headless)
+    if not poster.post(image_path, caption):
+        raise RuntimeError("Failed to post image to Instagram")
 
 
 if __name__ == "__main__":
-    auto_ig_post("image_path", "caption")
+    import sys
+
+    if len(sys.argv) < 3:
+        print("Usage: python auto_ig_post.py <image_path> <caption>")
+        sys.exit(1)
+
+    auto_ig_post(sys.argv[1], sys.argv[2])

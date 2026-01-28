@@ -9,6 +9,8 @@ import fastf1.plotting
 import textwrap
 import scienceplots
 import matplotlib
+from . import utils
+from .utils import get_point_finishers_abbr, get_compound_color, COMPOUND_COLORS
 
 QUICKLAP_THRESHOLD = 1.05
 BANDWIDTH = 0.17
@@ -16,17 +18,12 @@ B_SPLINE_DEG = 1
 
 
 def load_race_data(race: fastf1.core.Session):
-    race.load()
+    # Session data should already be loaded by plot_runner
+    # This is a no-op now, kept for compatibility
+    pass
 
 
-def get_point_finishers_abbr(race: fastf1.core.Session) -> list[str]:
-    if race.results is None or race.results.empty:
-        print("Race results not loaded or empty.")
-        return []
-    return list(race.results.loc[race.results["Position"] <= 10, "Abbreviation"])
-
-
-def _get_laps_for_drivers(
+def get_driver_laps_for_distribution(
     race: fastf1.core.Session,
     driver_abbr_list: list[str],
     pick_quicklaps_threshold: float | None = None,
@@ -80,18 +77,11 @@ def _get_laps_for_drivers(
     return laps.dropna(subset=["Driver"])
 
 
-def get_driver_laps_for_distribution(
-    race: fastf1.core.Session, point_finishers_abbr_list: list[str]
-) -> pd.DataFrame:
-    return _get_laps_for_drivers(
-        race, point_finishers_abbr_list, pick_quicklaps_threshold=QUICKLAP_THRESHOLD
-    )
-
-
 def get_driver_statistics_laps(
     race: fastf1.core.Session, point_finishers_abbr_list: list[str]
 ) -> pd.DataFrame:
-    return _get_laps_for_drivers(
+    """Get all laps (not just quick laps) for statistics calculation."""
+    return get_driver_laps_for_distribution(
         race, point_finishers_abbr_list, pick_quicklaps_threshold=None
     )
 
@@ -149,7 +139,7 @@ def plot_actual_laptimes_styled(
                     [finishing_order_list.index(driver_abbr)] * len(compound_data),
                     compound_data["LapTime(s)"],
                     "o",
-                    color=fastf1.plotting.COMPOUND_COLORS.get(compound, "darkgrey"),
+                    color=COMPOUND_COLORS.get(compound, "darkgrey"),
                     markersize=3,
                     alpha=1.0,
                     zorder=5,
@@ -289,7 +279,7 @@ def add_styled_legends(fig: plt.Figure, ax: plt.Axes):
             [0],
             [0],
             marker="o",
-            color=fastf1.plotting.COMPOUND_COLORS.get(comp, "darkgrey"),
+            color=COMPOUND_COLORS.get(comp, "darkgrey"),
             label=comp.capitalize(),
             linestyle="None",
             markersize=5,
@@ -347,8 +337,7 @@ def save_plot_final(fig: plt.Figure, filename_suptitle: str, dpi_val: int) -> st
 
 
 def create_styled_caption(year: int, event_name: str, caption_title_base: str) -> str:
-    return textwrap.dedent(
-        f"""\
+    return textwrap.dedent(f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -360,18 +349,15 @@ def create_styled_caption(year: int, event_name: str, caption_title_base: str) -
     ‣ Vertical lines show 68% and 95% pace intervals (based on quick laps).
     ‣ Dashed grey line shows mean lap time trend (all laps).
 
-    #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-    )
+    #F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
 
 def driver_laptimes_distribution(
     year: int, event_name: str, session_name: str, race: fastf1.core.Session, post: bool
 ) -> dict:
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
+    utils.setup_fastf1_plotting()
 
-    DPI = 125
+    DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
     try:
@@ -387,7 +373,9 @@ def driver_laptimes_distribution(
         )
         return {"filename": None, "caption": "Not enough data for plot.", "post": False}
 
-    driver_laps_quick_df = get_driver_laps_for_distribution(race, finishing_order_abbr)
+    driver_laps_quick_df = get_driver_laps_for_distribution(
+        race, finishing_order_abbr, QUICKLAP_THRESHOLD
+    )
     driver_laps_all_stats_df = get_driver_statistics_laps(race, finishing_order_abbr)
 
     if driver_laps_quick_df.empty:

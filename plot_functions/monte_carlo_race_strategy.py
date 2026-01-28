@@ -13,21 +13,63 @@ from scipy import stats
 from matplotlib.ticker import MaxNLocator
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from . import utils
 
 # Advanced Fitting
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel as C
 from sklearn.preprocessing import StandardScaler
 
-# Filter warnings
 warnings.filterwarnings("ignore")
 
-# Global Constants
+
+def get_safety_car_probability(event_name: str) -> float:
+    """Get safety car probability for specific event.
+
+    Args:
+        event_name: Name of the event
+
+    Returns:
+        Probability of safety car (0.0-1.0)
+    """
+    # Default safety car probabilities by event
+    sc_probabilities = {
+        "Monaco Grand Prix": 0.8,
+        "Singapore Grand Prix": 0.7,
+        "Baku": 0.65,
+        "Azerbaijan Grand Prix": 0.65,
+        "Monza": 0.3,
+        "Italian Grand Prix": 0.3,
+        "Spa": 0.4,
+        "Belgian Grand Prix": 0.4,
+    }
+    return sc_probabilities.get(event_name, 0.25)  # Default 25% for other events
+
+
+def get_fuel_consumption_factor(event_name: str) -> float:
+    """Get fuel consumption factor for specific event.
+
+    Args:
+        event_name: Name of the event
+
+    Returns:
+        Fuel consumption factor (multiplier)
+    """
+    # Default fuel consumption factors by event
+    fuel_factors = {
+        "Monaco Grand Prix": 0.85,  # Lower consumption in tight track
+        "Singapore Grand Prix": 1.15,  # Higher consumption in hot/long race
+        "Monza": 0.9,  # High speed, good fuel efficiency
+        "Italian Grand Prix": 0.9,
+    }
+    return fuel_factors.get(event_name, 1.0)
+
+
 DPI = 125
 FIG_SIZE = (1080 / DPI, 1350 / DPI)
-DEFAULT_CORRECTION = 0.06
+DEFAULT_CORRECTION = 0.05
+DEFAULT_PIT_LOSS = 22.0
 
-# Default Data Fallbacks
 DEFAULT_STINT_STATS = {
     "S": {"mean": 15, "max": 20},
     "M": {"mean": 25, "max": 35},
@@ -36,7 +78,6 @@ DEFAULT_STINT_STATS = {
     "W": {"mean": 25, "max": 40},
 }
 
-# Default Limits for a Q3 Qualifier (starting P1-P10)
 Q3_DEFAULT_LIMITS = {"S": 1, "M": 2, "H": 2}
 
 DEFAULT_PHYSICS = {
@@ -57,34 +98,10 @@ DEFAULT_CURVES = {
     for k, v in DEFAULT_PHYSICS.items()
 }
 
-# ==========================================
-# PART 1: Helper Functions (Data & IO)
-# ==========================================
-
 
 def load_race_data(race):
-    try:
-        race.load()
-    except Exception as e:
-        raise RuntimeError(f"Error loading race data: {e}")
-
-
-def get_winner_abbr(race):
-    try:
-        return race.results.iloc[0]["Abbreviation"]
-    except:
-        return None
-
-
-def save_plot_and_get_filename(fig, suptitle_text_param, dpi_val):
-    if not os.path.exists("../pic"):
-        os.makedirs("../pic", exist_ok=True)
-    filename_safe_title = (
-        suptitle_text_param.replace(" ", "_").replace(":", "").replace("/", "_")
-    )
-    filename = f"../pic/{filename_safe_title}.png"
-    fig.savefig(filename, dpi=dpi_val)
-    return filename
+    """No-op: Session data is already loaded by PlotRunner."""
+    pass
 
 
 def create_styled_caption_monte_carlo(
@@ -151,11 +168,6 @@ def get_actual_tyre_counts(race, driver_abbr):
     return counts
 
 
-# ==========================================
-# PART 2: Advanced Physics (Optimized Logic)
-# ==========================================
-
-
 def prepare_race_data(race):
     """Preprocesses laps: filtering, time conversion, and stint indexing."""
     laps = race.laps.pick_accurate().pick_track_status("1").copy()
@@ -210,7 +222,7 @@ def calculate_actual_stint_stats(race):
 def calculate_avg_pit_loss(race):
     laps = race.laps.pick_accurate().pick_track_status("1")
     if laps.empty:
-        return 22.0
+        return DEFAULT_PIT_LOSS
 
     base_pace = (
         laps[laps["PitInTime"].isna() & laps["PitOutTime"].isna()]["LapTime"]
@@ -218,7 +230,7 @@ def calculate_avg_pit_loss(race):
         .median()
     )
     if np.isnan(base_pace):
-        return 22.0
+        return DEFAULT_PIT_LOSS
 
     in_loss = (
         laps[~laps["PitInTime"].isna()]["LapTime"].dt.total_seconds() - base_pace
@@ -232,8 +244,8 @@ def calculate_avg_pit_loss(race):
     )
 
     if np.isnan(total) or total < 15 or total > 40:
-        return 22.0
-    return total
+        return DEFAULT_PIT_LOSS
+    return total + 100
 
 
 def optimize_fuel_correction(laps_df):
@@ -304,9 +316,15 @@ def calculate_race_degradation_curves(race, stint_stats):
             y = c_laps["FuelCorrected"].values.reshape(-1, 1)
 
             scaler_X, scaler_y = StandardScaler(), StandardScaler()
+
+            kernel = C(1.0, (1e-3, 1e3)) * RBF(
+                length_scale=10.0, length_scale_bounds=(1.0, 50.0)
+            ) + WhiteKernel(noise_level=0.1, noise_level_bounds=(1e-3, 0.7))
+
             gpr = GaussianProcessRegressor(
-                kernel=C(1.0) * RBF(1.0) + WhiteKernel(0.1), n_restarts_optimizer=5
+                kernel=kernel, n_restarts_optimizer=50, alpha=0.0
             )
+
             gpr.fit(scaler_X.fit_transform(X), scaler_y.fit_transform(y))
 
             pred = scaler_y.inverse_transform(
@@ -345,11 +363,6 @@ def calculate_race_degradation_curves(race, stint_stats):
             curves[code] = ref_curve[0] + base_diff + (ref_curve - ref_curve[0]) * ratio
 
     return curves, "Real Race (GPR+Cliff)", fuel_k
-
-
-# ==========================================
-# PART 3: Dynamic Strategy Generation (Optimized)
-# ==========================================
 
 
 def validate_strategy_with_inventory(strategy_compounds, actual_used_counts=None):
@@ -406,11 +419,6 @@ def generate_all_possible_strategies(total_laps, stint_stats):
     return strategies
 
 
-# ==========================================
-# PART 4: Simulation Engine (Optimized)
-# ==========================================
-
-
 class RaceStrategySimulator:
     def __init__(
         self,
@@ -419,18 +427,19 @@ class RaceStrategySimulator:
         pit_loss,
         lap_time_std=0.3,
         fuel_correction_factor=0.06,
+        sc_probability=0.40,
     ):
         self.total_laps = int(total_laps)
         self.pit_loss = pit_loss
         self.deg_curves = deg_curves
         self.fuel_k = fuel_correction_factor
         self.lap_time_std = lap_time_std
+        self.sc_prob = sc_probability
 
-    def simulate_strategy(self, strategy_name, compounds, pit_laps, n_sims=1000):
-        total_race_times = np.zeros(n_sims) + 4.5  # Standing start loss
+    def simulate_strategy(self, strategy_name, compounds, pit_laps, n_sims=10000):
+        total_race_times = np.zeros(n_sims) + 6.0
 
-        # Pre-calculate SC params
-        has_sc = np.random.rand(n_sims) < 0.4
+        has_sc = np.random.rand(n_sims) < self.sc_prob
         sc_start = np.random.randint(2, self.total_laps - 5, n_sims)
         sc_dur = np.random.randint(3, 6, n_sims)
 
@@ -448,8 +457,8 @@ class RaceStrategySimulator:
                 total_race_times += loss + np.random.exponential(0.6, n_sims)
 
                 # Traffic injection
-                caught = np.random.rand(n_sims) < 0.6
-                traffic_penalty[caught] += np.random.randint(3, 8, np.sum(caught))
+                caught = np.random.rand(n_sims) < 0.2
+                traffic_penalty[caught] += np.random.randint(1, 5, np.sum(caught))
 
                 stint_idx += 1
                 current_tyre = (
@@ -476,23 +485,16 @@ class RaceStrategySimulator:
                 )
                 total_race_times += lap_val
 
-                age += np.where(is_sc, 0, 1)  # SC saves tyres
+                age += np.where(is_sc, 0, 1)
 
         return total_race_times
-
-
-# ==========================================
-# PART 5: Visualization
-# ==========================================
 
 
 def plot_strategy_distribution_styled(
     ax, results_dict, total_laps, driver_actual_text, driver_abbr
 ):
-    # Use SciencePlots compatible colors
     prop_cycle = plt.rcParams["axes.prop_cycle"]
     colors = prop_cycle.by_key()["color"]
-    # Ensure enough colors
     while len(colors) < len(results_dict):
         colors += colors
 
@@ -519,10 +521,8 @@ def plot_strategy_distribution_styled(
     ax.set_ylabel(r"Probability (\%)", fontsize=14, color="black")
     ax.tick_params(axis="both", which="major", colors="black")
 
-    # Matched Grid Style
     ax.grid(True, which="major", linestyle="--", linewidth=0.5, alpha=0.5, zorder=0)
 
-    # Matched Legend Style
     leg = ax.legend(
         title=f"{driver_abbr} Top 5 Options",
         loc="upper right",
@@ -550,25 +550,19 @@ def plot_strategy_distribution_styled(
         )
 
 
-# ==========================================
-# PART 6: Main Execution
-# ==========================================
-
-
 def monte_carlo_race_strategy(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    # Matched Context Setup
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
     )
 
     load_race_data(race)
 
-    # 1. Data & Physics
-    winner_abbr = get_winner_abbr(race)
-    if not winner_abbr:
+    winner_list = utils.get_winner(race)
+    if not winner_list:
         return {"filename": None, "caption": "No winner found.", "post": False}
+    winner_abbr = winner_list[0]
 
     stint_stats = calculate_actual_stint_stats(race)
     deg_curves, deg_source, fuel_k = calculate_race_degradation_curves(
@@ -581,26 +575,29 @@ def monte_carlo_race_strategy(
     total_laps_real = race.total_laps or race.laps["LapNumber"].max()
     pit_loss_real = calculate_avg_pit_loss(race)
 
-    # 2. Strategy Generation
     all_possible_strategies = generate_all_possible_strategies(
         total_laps_real, stint_stats
     )
 
-    # 3. Filter
     valid_strategies = [
         s
         for s in all_possible_strategies
         if validate_strategy_with_inventory(s["compounds"], actual_used_counts)
     ]
 
-    # 4. Simulation
-    N_SIMS = 1000
+    sc_prob = get_safety_car_probability(event_name)
+    fuel_factor = get_fuel_consumption_factor(event_name)
+
+    fuel_k_adjusted = fuel_k * fuel_factor
+
+    N_SIMS = 10000
     simulator = RaceStrategySimulator(
         deg_curves=deg_curves,
         total_laps=total_laps_real,
         pit_loss=pit_loss_real,
         lap_time_std=0.4,
-        fuel_correction_factor=fuel_k,
+        fuel_correction_factor=fuel_k_adjusted,
+        sc_probability=sc_prob,
     )
 
     all_results = {}
@@ -609,7 +606,6 @@ def monte_carlo_race_strategy(
             strat["name"], strat["compounds"], strat["pit_laps"], N_SIMS
         )
 
-    # 5. Selection
     ranking_metric = {
         name: np.percentile(data, 70) for name, data in all_results.items()
     }
@@ -617,23 +613,15 @@ def monte_carlo_race_strategy(
     top_5_results = {name: all_results[name] for name in sorted_strategies[:5]}
     best_strategy_name = sorted_strategies[0]
 
-    # 6. Plotting with Matched Style
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
 
         plot_strategy_distribution_styled(
             ax, top_5_results, total_laps_real, actual_strategy_str, winner_abbr
         )
 
-        # Titles Matched to Code 2 Format
         suptitle_text_global = (
             f"{year} {event_name} Grand Prix: {winner_abbr} Race Strategy Analysis"
         )
@@ -642,7 +630,7 @@ def monte_carlo_race_strategy(
         plt.suptitle(suptitle_text_global, fontsize=18, color="black")
         plt.figtext(0.5, 0.94, subtitle_upper, ha="center", fontsize=15, color="black")
 
-        filename = save_plot_and_get_filename(fig, suptitle_text_global, DPI)
+        filename = utils.save_plot_to_file(fig, suptitle_text_global, DPI)
         plt.close(fig)
 
     caption = create_styled_caption_monte_carlo(

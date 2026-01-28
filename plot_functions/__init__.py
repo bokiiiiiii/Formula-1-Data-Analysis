@@ -1,20 +1,21 @@
 import os
 import importlib
+from logger_config import get_logger
 
-# Get the current directory path
+logger = get_logger(__name__)
+
 current_dir = os.path.dirname(__file__)
 
-# List all Python files in the current directory excluding __init__.py
+excluded = {"__init__.py", "utils.py", "plot_registry.py", "plot_runner.py"}
 modules = [
-    f[:-3] for f in os.listdir(current_dir) if f.endswith(".py") and f != "__init__.py"
+    f[:-3] for f in os.listdir(current_dir) if f.endswith(".py") and f not in excluded
 ]
 
-# Dynamically import each module and add the function to the globals
 for module_name in modules:
-    module = importlib.import_module(f".{module_name}", package=__name__)
-    function = getattr(module, module_name, None)
-    if function:
-        globals()[module_name] = function
+    try:
+        module = importlib.import_module(f".{module_name}", package=__name__)
+        globals()[module_name] = module
+    except Exception as e:
+        logger.error(f"Failed to import module {module_name}: {e}")
 
-# Define the __all__ list to explicitly specify the public API of this package
 __all__ = modules

@@ -6,6 +6,7 @@ import matplotlib
 import fastf1
 import fastf1.plotting
 import fastf1.utils
+from . import utils
 
 
 def annotated_sprint_qualifying_flying_lap(
@@ -173,8 +174,7 @@ def annotated_sprint_qualifying_flying_lap(
             .replace(f"{event_name} ", "")
             .replace("Grand Prix ", "")
         )
-        return textwrap.dedent(
-            f"""\
+        return textwrap.dedent(f"""\
 🏎️
 « {year} {event_name} Grand Prix »
 
@@ -194,8 +194,7 @@ def annotated_sprint_qualifying_flying_lap(
 \t{driver_data['lap_time_str'][1]} (min:s.ms)
 ‣‣ Delta Lap Time: {laptime_diff_str} (s)  
 
-#F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-        )
+#F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
     def process_driver_lap_data(
         driver_abbr_param,
@@ -250,28 +249,23 @@ def annotated_sprint_qualifying_flying_lap(
 
         return v_min, v_max, d_max
 
+    # Note: Using mpl_timedelta_support=True for this plot (special requirement)
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
     )
 
     # Plotting constants for consistent sizing
-    DPI = 125
+    DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)  # Target 1080x1350 pixels
 
-    race.load()
+    # Session data is already loaded by plot_runner
     quali_results = race.results
     front_row = quali_results[:2]
     drivers_abbr_list = list(front_row["Abbreviation"])
 
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
         v_min, v_max, d_max = float("inf"), float("-inf"), float("-inf")
 
