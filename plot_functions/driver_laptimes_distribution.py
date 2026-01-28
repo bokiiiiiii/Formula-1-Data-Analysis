@@ -337,8 +337,7 @@ def save_plot_final(fig: plt.Figure, filename_suptitle: str, dpi_val: int) -> st
 
 
 def create_styled_caption(year: int, event_name: str, caption_title_base: str) -> str:
-    return textwrap.dedent(
-        f"""\
+    return textwrap.dedent(f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -350,8 +349,7 @@ def create_styled_caption(year: int, event_name: str, caption_title_base: str) -
     ‣ Vertical lines show 68% and 95% pace intervals (based on quick laps).
     ‣ Dashed grey line shows mean lap time trend (all laps).
 
-    #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-    )
+    #F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
 
 def driver_laptimes_distribution(

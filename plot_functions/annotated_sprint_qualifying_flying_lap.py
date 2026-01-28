@@ -174,8 +174,7 @@ def annotated_sprint_qualifying_flying_lap(
             .replace(f"{event_name} ", "")
             .replace("Grand Prix ", "")
         )
-        return textwrap.dedent(
-            f"""\
+        return textwrap.dedent(f"""\
 🏎️
 « {year} {event_name} Grand Prix »
 
@@ -195,8 +194,7 @@ def annotated_sprint_qualifying_flying_lap(
 \t{driver_data['lap_time_str'][1]} (min:s.ms)
 ‣‣ Delta Lap Time: {laptime_diff_str} (s)  
 
-#F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-        )
+#F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
     def process_driver_lap_data(
         driver_abbr_param,

@@ -184,8 +184,7 @@ def generate_styled_caption(year, event_name, suptitle_display_text):
         f"{event_name} Grand Prix ", ""
     )
 
-    caption = textwrap.dedent(
-        f"""\
+    caption = textwrap.dedent(f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -196,8 +195,7 @@ def generate_styled_caption(year, event_name, suptitle_display_text):
     ‣ Swarm plots show individual quick lap times.
     ‣ Dashed line indicates the trend of median lap times across teams.
 
-    #F1 #Formula1 #{event_name.replace(" ", "")}GP #TeamPace"""
-    )
+    #F1 #Formula1 #{event_name.replace(" ", "")}GP #TeamPace""")
     return caption
 
 

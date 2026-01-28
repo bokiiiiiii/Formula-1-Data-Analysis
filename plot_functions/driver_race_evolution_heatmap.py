@@ -140,8 +140,7 @@ def save_plot(fig, title: str) -> str:
 
 
 def generate_caption(year, event, driver, main_title, lower_title):
-    return textwrap.dedent(
-        f"""
+    return textwrap.dedent(f"""
         🏎️
         « {year} {event} Grand Prix »
         
@@ -155,8 +154,7 @@ def generate_caption(year, event, driver, main_title, lower_title):
         \t◦ Iso-Lines: Speed steps of {CONTOUR_STEP} km/h
         
         #F1 #Formula1 #{event.replace(' ', '')}GP #{driver} #DataViz
-    """
-    ).strip()
+    """).strip()
 
 
 def driver_race_evolution_heatmap(

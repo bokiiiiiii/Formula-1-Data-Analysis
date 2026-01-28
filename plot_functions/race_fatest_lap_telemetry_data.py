@@ -123,8 +123,7 @@ def race_fatest_lap_telemetry_data(
             f"{event_name} Grand Prix ", ""
         )
 
-        return textwrap.dedent(
-            f"""\
+        return textwrap.dedent(f"""\
 🏎️
 « {year} {event_name} Grand Prix »
 
@@ -145,8 +144,7 @@ def race_fatest_lap_telemetry_data(
 \t{driver_data_dict["lap_time_str_list"][1]} (min:s.ms)
 ‣‣ Delta Lap Time: {laptime_diff_str_val} (s)  
 
-#F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-        )
+#F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
     with plt.style.context(["science", "bright"]):
         # Attempt to override scienceplots' potential dimension-altering rcParams

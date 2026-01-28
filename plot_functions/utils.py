@@ -637,8 +637,7 @@ def create_instagram_caption(
     if hashtags:
         base_hashtags = f"{base_hashtags} {hashtags}"
 
-    return textwrap.dedent(
-        f"""\
+    return textwrap.dedent(f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -646,8 +645,7 @@ def create_instagram_caption(
 
     {description}
 
-    {base_hashtags}"""
-    )
+    {base_hashtags}""")
 
 
 def get_top_n_finishers(race, n: int = 10) -> list[str]:

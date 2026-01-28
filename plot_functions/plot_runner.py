@@ -207,6 +207,26 @@ class PlotRunner:
                     logger.warning(f"Skipping {plot_name} (session load failed)")
                     continue
 
+                # Run the plot
+                self.run_plot(
+                    plot_name=plot_name,
+                    year=year,
+                    event_name=event_name,
+                    session_name=session_type,
+                    race=race,
+                    post=post,
+                    plot_func=plot_func,
+                )
+
+            except Exception as e:
+                logger.error(f"Error processing {plot_name}: {e}", exc_info=True)
+
+        logger.info("=" * 60)
+        logger.info(f"Completed {len(self.results)} plots")
+        logger.info("=" * 60)
+
+        return self.results
+
     def cleanup(self) -> None:
         """Clean up resources."""
         plt.close("all")

@@ -226,15 +226,13 @@ def organize_png_files_name(
                 titles.append(title)
 
         titles_str = "\n• ".join(titles) if titles else "No specific data generated"
-        caption = textwrap.dedent(
-            f"""\
+        caption = textwrap.dedent(f"""\
             🏎️
             « {year} {event_name} Grand Prix »
 
             • {titles_str}
 
-            #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-        )
+            #F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
         output_file_path = os.path.join(folder_path, f"{year}_{event_name}_images.txt")
         with open(output_file_path, "w", encoding="utf-8") as f:
