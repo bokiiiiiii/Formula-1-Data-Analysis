@@ -32,10 +32,8 @@ class PlotRunner:
         self.loaded_sessions: Dict[tuple, fastf1.core.Session] = {}
         self.results: Dict[str, Dict[str, Any]] = {}
 
-        # Setup directories
         Path(config.folder_path).mkdir(parents=True, exist_ok=True)
 
-        # Setup matplotlib and cache
         utils.setup_matplotlib_style(
             utils.PlotConfig(
                 dpi=config.figure_dpi,
@@ -61,16 +59,13 @@ class PlotRunner:
         """
         session_key = (year, event_name, session_type)
 
-        # Return cached session if available
         if session_key in self.loaded_sessions:
             logger.debug(f"Using cached session: {event_name} - {session_type}")
             return self.loaded_sessions[session_key]
 
-        # Load new session
         try:
             logger.info(f"Loading session: {event_name} - {session_type}")
             session = fastf1.get_session(year, event_name, session_type)
-            # Load session data (FastF1 handles already-loaded sessions)
             session.load()
             self.loaded_sessions[session_key] = session
             return session
@@ -107,16 +102,13 @@ class PlotRunner:
                 logger.warning(f"Plot function not provided: {plot_name}")
                 return False
 
-            # Execute plot function
             logger.info(f"Running: {plot_name}")
             result = plot_func(year, event_name, session_name, race, post)
 
-            # Validate result
             if not isinstance(result, dict):
                 logger.error(f"{plot_name} returned invalid result type")
                 return False
 
-            # Store result
             self.results[plot_name] = result
             logger.info(f"Completed: {plot_name}")
             return True
@@ -149,29 +141,29 @@ class PlotRunner:
         logger.info(f"Year: {year}, Session: {session_name}")
         logger.info("=" * 60)
 
-        # Get all available plot functions from config
         available_plots = list(self.config.plot_functions.keys())
 
-        # Filter by config
-        enabled_plots = [
-            name
-            for name in available_plots
-            if self.config.enable_all
-            or self.config.plot_functions.get(name, {}).get("enabled", False)
-        ]
+        enabled_plots = []
+        for name in available_plots:
+            plot_config = self.config.plot_functions.get(name)
+            if plot_config is None:
+                continue
+            is_enabled = self.config.enable_all or plot_config.enabled
+            matches_session = plot_config.session == session_name
+            if is_enabled and matches_session:
+                enabled_plots.append(name)
 
-        logger.info(f"Processing {len(enabled_plots)} plot functions")
+        logger.info(
+            f"Processing {len(enabled_plots)} plot functions for session {session_name}"
+        )
 
-        # Create a mapping of plot names to functions by dynamically importing
         import importlib
 
         plot_functions_map = {}
 
         for plot_name in enabled_plots:
             try:
-                # Dynamically import the module
                 module = importlib.import_module(f"plot_functions.{plot_name}")
-                # Get the function with the same name as the module
                 plot_func = getattr(module, plot_name, None)
                 if plot_func and callable(plot_func):
                     plot_functions_map[plot_name] = plot_func
@@ -182,16 +174,13 @@ class PlotRunner:
             except ImportError as e:
                 logger.warning(f"Could not import module {plot_name}: {e}")
 
-        # Run each plot
         for plot_name in enabled_plots:
             try:
-                # Check if plot function exists
                 if plot_name not in plot_functions_map:
                     logger.warning(f"Plot function not found: {plot_name}")
                     continue
 
                 plot_func = plot_functions_map[plot_name]
-                # Get session config
                 session_config = self.config.plot_functions.get(plot_name)
                 if session_config is None:
                     logger.warning(f"No config found for {plot_name}")
@@ -201,13 +190,11 @@ class PlotRunner:
                     session_config.session if session_config else session_name
                 )
 
-                # Load session
                 race = self.get_or_load_session(year, event_name, session_type)
                 if race is None:
                     logger.warning(f"Skipping {plot_name} (session load failed)")
                     continue
 
-                # Run the plot
                 self.run_plot(
                     plot_name=plot_name,
                     year=year,

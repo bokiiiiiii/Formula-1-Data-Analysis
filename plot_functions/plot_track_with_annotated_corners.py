@@ -264,7 +264,6 @@ def plot_track_with_annotated_corners(
                 "post": False,
             }
 
-        # Get circuit info inside try block
         circuit_info_obj = race.get_circuit_info()
 
     except Exception as e:

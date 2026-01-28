@@ -11,10 +11,8 @@ import scienceplots
 from . import utils
 from logger_config import get_logger
 
-# Logger
 logger = get_logger(__name__)
 
-# Configuration constants
 SMOOTHING_SIGMA = [8, 1]
 CONTOUR_STEP = 50  # km/h
 PLOT_CONFIG = utils.PlotConfig()
@@ -61,14 +59,12 @@ def prepare_contour_data(race, driver_abbr: str, dist_bins: int = 800):
     if not speed_matrix_list:
         return None, None, None
 
-    # Shape: (Distance, Laps)
     matrix = np.array(speed_matrix_list).T
     return matrix, np.array(lap_numbers), dist_axis
 
 
 def configure_plot_style(ax, year, event, driver, lap_numbers, dist_axis):
     """Sets titles, labels, and axis limits."""
-    # Titles
     title_main = f"{year} {event} GP: {driver} Spatio-Temporal Speed Evolution"
     title_upper = f"Telemetry Topology for Race Pace Analysis"
     title_lower = f""
@@ -77,7 +73,6 @@ def configure_plot_style(ax, year, event, driver, lap_numbers, dist_axis):
     plt.figtext(0.5, 0.94, title_upper, ha="center", fontsize=15, color="black")
     plt.figtext(0.5, 0.915, title_lower, ha="center", fontsize=13, color="black")
 
-    # Labels and Limits
     ax.set_xlabel("Lap Number", fontsize=14, color="black")
     ax.set_ylabel("Track Distance (m)", fontsize=14, color="black")
 
@@ -90,13 +85,10 @@ def configure_plot_style(ax, year, event, driver, lap_numbers, dist_axis):
 
 def plot_contour(ax, matrix, x_vals, y_vals):
     """Draws the smoothed contour map and synchronized colorbar."""
-    # Smoothing
     zi = ndimage.gaussian_filter(matrix, sigma=SMOOTHING_SIGMA)
 
-    # Grid generation
     xi, yi = np.meshgrid(x_vals, y_vals)
 
-    # Level definition
     v_min, v_max = np.min(zi), np.max(zi)
     levels_fill = np.linspace(v_min, v_max, 40)
 
@@ -108,7 +100,6 @@ def plot_contour(ax, matrix, x_vals, y_vals):
     else:
         levels_line = np.arange(start_level, end_level + CONTOUR_STEP, CONTOUR_STEP)
 
-    # Plotting
     contour_filled = ax.contourf(
         xi, yi, zi, levels=levels_fill, cmap="RdBu_r", alpha=0.9
     )
@@ -118,7 +109,6 @@ def plot_contour(ax, matrix, x_vals, y_vals):
 
     ax.clabel(contour_lines, inline=True, fontsize=10, fmt="%.0f")
 
-    # Colorbar configuration
     cbar = plt.colorbar(contour_filled, ax=ax, pad=0.02, aspect=30, ticks=levels_line)
     cbar.set_label("Speed (km/h)", fontsize=14, labelpad=10, color="black")
     cbar.ax.yaxis.set_tick_params(color="black", labelcolor="black", labelsize=12)
@@ -140,7 +130,8 @@ def save_plot(fig, title: str) -> str:
 
 
 def generate_caption(year, event, driver, main_title, lower_title):
-    return textwrap.dedent(f"""
+    return textwrap.dedent(
+        f"""
         🏎️
         « {year} {event} Grand Prix »
         
@@ -154,7 +145,8 @@ def generate_caption(year, event, driver, main_title, lower_title):
         \t◦ Iso-Lines: Speed steps of {CONTOUR_STEP} km/h
         
         #F1 #Formula1 #{event.replace(' ', '')}GP #{driver} #DataViz
-    """).strip()
+    """
+    ).strip()
 
 
 def driver_race_evolution_heatmap(
@@ -173,13 +165,11 @@ def driver_race_evolution_heatmap(
         Dictionary with plot information
     """
     try:
-        # Setup
         utils.setup_matplotlib_style(PLOT_CONFIG)
         utils.load_race_data(
             race, telemetry=True, laps=True, weather=False, logger_obj=logger
         )
 
-        # Get winner
         target_drivers = utils.get_driver_abbreviations(
             race, num_drivers=1, logger_obj=logger
         )
@@ -190,7 +180,6 @@ def driver_race_evolution_heatmap(
         driver_abbr = target_drivers[0]
         logger.info(f"Processing contour data for {driver_abbr}...")
 
-        # Prepare data
         matrix, laps, dists = prepare_contour_data(race, driver_abbr)
         if matrix is None:
             logger.warning(f"No valid data for {driver_abbr}")
@@ -201,7 +190,6 @@ def driver_race_evolution_heatmap(
                 False,
             )
 
-        # Create and configure figure
         with plt.style.context(["science", "bright"]):
             utils.setup_matplotlib_style(PLOT_CONFIG)
             fig, ax = utils.create_figure_and_axis(PLOT_CONFIG)

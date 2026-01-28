@@ -21,20 +21,25 @@ from performance_monitor import measure
 setup_logging()
 logger = get_logger(__name__)
 
-ctk.set_appearance_mode("System")
+ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
+COLORS = {
+    "bg_dark": "#0a0a0f",
+    "bg_card": "#12121a",
+    "bg_hover": "#1e1e2e",
+    "accent": "#3b82f6",
+    "accent_hover": "#60a5fa",
+    "text_primary": "#e4e4e7",
+    "text_secondary": "#6b7280",
+    "border": "#27272a",
+    "success": "#22c55e",
+}
 
 
 @retry_on_network_error(max_attempts=3, delay=5.0)
 def get_event_list_from_api(year: int) -> list:
-    """Get event list from FastF1 API with retry logic.
-
-    Args:
-        year: Season year
-
-    Returns:
-        List of event names
-    """
+    """Get event list from FastF1 API with retry logic."""
     try:
         logger.info(f"Fetching event list for {year} from FastF1 API...")
         schedule = fastf1.get_event_schedule(year)
@@ -43,7 +48,6 @@ def get_event_list_from_api(year: int) -> list:
         return sorted(event_names)
     except Exception as e:
         logger.error(f"API fetch failed: {e}")
-        logger.warning("Using fallback events")
         return [
             "Bahrain Grand Prix",
             "Saudi Arabian Grand Prix",
@@ -51,7 +55,6 @@ def get_event_list_from_api(year: int) -> list:
             "Japanese Grand Prix",
             "Chinese Grand Prix",
             "Miami Grand Prix",
-            "Emilia Romagna Grand Prix",
             "Monaco Grand Prix",
             "Canadian Grand Prix",
             "Spanish Grand Prix",
@@ -61,7 +64,6 @@ def get_event_list_from_api(year: int) -> list:
             "Belgian Grand Prix",
             "Dutch Grand Prix",
             "Italian Grand Prix",
-            "Azerbaijan Grand Prix",
             "Singapore Grand Prix",
             "United States Grand Prix",
             "Mexico City Grand Prix",
@@ -72,109 +74,270 @@ def get_event_list_from_api(year: int) -> list:
         ]
 
 
-def select_event_name(year: int = None) -> str:
-    """Select event from GUI list.
+class F1AnalysisApp(ctk.CTk):
+    """Modern unified F1 Analysis configuration app."""
 
-    Args:
-        year: Optional year for dynamic loading
+    def __init__(self):
+        super().__init__()
+        self.title("F1 Data Analysis")
+        self.configure(fg_color=COLORS["bg_dark"])
 
-    Returns:
-        Selected event name
-    """
-    if year is None:
-        year = 2025
+        window_width, window_height = 520, 540
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        x = (screen_w - window_width) // 2
+        y = (screen_h - window_height) // 2
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        self.resizable(False, False)
 
-    with measure("get_event_list"):
-        options = get_event_list_from_api(year)
-    selected_event = None
+        self.selected_year = ctk.StringVar(value="2025")
+        self.selected_event = ctk.StringVar(value="")
+        self.session_vars = {}
+        self.instagram_var = ctk.BooleanVar(value=False)
+        self.result = None
+        self.event_buttons = []
 
-    root = ctk.CTk()
-    root.title("Select F1 Event")
+        self._build_ui()
+        self._load_events()
 
-    window_width = 350
-    window_height = 800
+    def _build_ui(self):
+        """Build the main UI layout."""
+        header = ctk.CTkFrame(self, fg_color=COLORS["bg_card"], height=50)
+        header.pack(fill="x", padx=0, pady=0)
+        header.pack_propagate(False)
 
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    center_x = int((screen_width - window_width) / 2)
-    center_y = int((screen_height - window_height) / 2)
-    root.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
-    root.resizable(False, False)
+        ctk.CTkLabel(
+            header,
+            text="F1 Data Analysis",
+            font=("Segoe UI", 18, "bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(side="left", padx=16, pady=12)
 
-    font_label = ("Times New Roman", 14)
-    font_button_list = ("Times New Roman", 13)
-    font_select_button = ("Times New Roman", 14, "bold")
-    button_corner_radius = 6
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=12, pady=10)
 
-    label = ctk.CTkLabel(root, text="Please select an F1 event:", font=font_label)
-    label.pack(pady=(10, 5), padx=20, anchor="w")
+        left_panel = ctk.CTkFrame(content, fg_color=COLORS["bg_card"], corner_radius=8)
+        left_panel.pack(side="left", fill="both", expand=True, padx=(0, 6))
 
-    scrollable_frame = ctk.CTkScrollableFrame(root, width=280, height=500)
-    scrollable_frame.pack(pady=10, padx=20, fill="both", expand=True)
+        self._build_event_panel(left_panel)
 
-    event_buttons = []
-
-    def create_event_button_callback(event_name, current_button):
-        def callback():
-            nonlocal selected_event
-            selected_event = event_name
-            for btn in event_buttons:
-                btn.configure(
-                    fg_color=(
-                        ctk.ThemeManager.theme["CTkButton"]["hover_color"]
-                        if btn == current_button
-                        else ctk.ThemeManager.theme["CTkButton"]["fg_color"]
-                    )
-                )
-
-        return callback
-
-    for option in options:
-        button = ctk.CTkButton(
-            scrollable_frame,
-            text=option,
-            font=font_button_list,
-            corner_radius=button_corner_radius,
-            anchor="w",
+        right_panel = ctk.CTkFrame(
+            content, fg_color=COLORS["bg_card"], corner_radius=8, width=140
         )
-        button.configure(command=create_event_button_callback(option, button))
-        button.pack(pady=3, padx=5, fill="x")
-        event_buttons.append(button)
+        right_panel.pack(side="right", fill="y", padx=(6, 0))
+        right_panel.pack_propagate(False)
 
-    def on_select_confirm():
-        if selected_event:
-            root.withdraw()
-            root.quit()
-        else:
-            messagebox.showwarning(
-                "No Selection", "Please select an event from the list."
+        self._build_config_panel(right_panel)
+
+        footer = ctk.CTkFrame(self, fg_color="transparent", height=50)
+        footer.pack(fill="x", padx=12, pady=(0, 10))
+
+        self.start_btn = ctk.CTkButton(
+            footer,
+            text="START",
+            font=("Segoe UI", 14, "bold"),
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_hover"],
+            height=40,
+            corner_radius=6,
+            command=self._on_start,
+        )
+        self.start_btn.pack(fill="x")
+
+    def _build_event_panel(self, parent):
+        """Build the event selection panel."""
+        year_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        year_frame.pack(fill="x", padx=10, pady=(10, 6))
+
+        for year in ["2023", "2024", "2025", "2026"]:
+            btn = ctk.CTkButton(
+                year_frame,
+                text=year,
+                width=52,
+                height=28,
+                font=("Segoe UI", 12),
+                fg_color=(COLORS["accent"] if year == "2025" else COLORS["bg_hover"]),
+                hover_color=COLORS["accent_hover"],
+                corner_radius=6,
+                command=lambda y=year: self._on_year_change(y),
+            )
+            btn.pack(side="left", padx=2)
+            setattr(self, f"year_btn_{year}", btn)
+
+        self.event_frame = ctk.CTkScrollableFrame(
+            parent,
+            fg_color="transparent",
+            scrollbar_button_color=COLORS["border"],
+            scrollbar_button_hover_color=COLORS["text_secondary"],
+        )
+        self.event_frame.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+
+    def _build_config_panel(self, parent):
+        """Build the configuration panel."""
+        sessions = [
+            ("FP1", "FP1"),
+            ("FP2", "FP2"),
+            ("FP3", "FP3"),
+            ("Q", "Quali"),
+            ("SQ", "Sprint Q"),
+            ("S", "Sprint"),
+            ("R", "Race"),
+        ]
+
+        for code, name in sessions:
+            var = ctk.BooleanVar(value=(code == "R"))
+            self.session_vars[code] = var
+
+            cb = ctk.CTkCheckBox(
+                parent,
+                text=name,
+                variable=var,
+                font=("Segoe UI", 13),
+                text_color=COLORS["text_primary"],
+                fg_color=COLORS["accent"],
+                hover_color=COLORS["accent_hover"],
+                border_color=COLORS["border"],
+                checkmark_color=COLORS["text_primary"],
+                corner_radius=3,
+                checkbox_width=20,
+                checkbox_height=20,
+            )
+            cb.pack(padx=10, pady=4, anchor="w")
+
+        ctk.CTkFrame(parent, fg_color=COLORS["border"], height=1).pack(
+            fill="x", padx=10, pady=10
+        )
+
+        cb_ig = ctk.CTkCheckBox(
+            parent,
+            text="IG Post",
+            variable=self.instagram_var,
+            font=("Segoe UI", 13),
+            text_color=COLORS["text_primary"],
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_hover"],
+            border_color=COLORS["border"],
+            checkmark_color=COLORS["text_primary"],
+            corner_radius=3,
+            checkbox_width=20,
+            checkbox_height=20,
+        )
+        cb_ig.pack(padx=10, pady=4, anchor="w")
+
+        self.status_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        self.status_frame.pack(fill="x", padx=10, pady=(10, 8), side="bottom")
+
+        self.status_label = ctk.CTkLabel(
+            self.status_frame,
+            text="",
+            font=("Segoe UI", 10),
+            text_color=COLORS["text_secondary"],
+        )
+        self.status_label.pack()
+
+    def _load_events(self):
+        """Load events for the selected year."""
+        year = int(self.selected_year.get())
+
+        for btn in self.event_buttons:
+            btn.destroy()
+        self.event_buttons.clear()
+
+        self.status_label.configure(text="Loading...")
+        self.update()
+
+        events = get_event_list_from_api(year)
+
+        for event in events:
+            btn = ctk.CTkButton(
+                self.event_frame,
+                text=event,
+                font=("Segoe UI", 13),
+                fg_color="transparent",
+                hover_color=COLORS["bg_hover"],
+                text_color=COLORS["text_primary"],
+                anchor="w",
+                height=34,
+                corner_radius=4,
+                command=lambda e=event: self._on_event_select(e),
+            )
+            btn.pack(fill="x", pady=1)
+            self.event_buttons.append(btn)
+
+        self.status_label.configure(text="")
+
+    def _on_year_change(self, year: str):
+        """Handle year button click."""
+        self.selected_year.set(year)
+        self.selected_event.set("")
+
+        for y in ["2023", "2024", "2025", "2026"]:
+            btn = getattr(self, f"year_btn_{y}")
+            btn.configure(
+                fg_color=COLORS["accent"] if y == year else COLORS["bg_hover"]
             )
 
-    def on_closing():
-        if selected_event is None:
-            logger.info("No event selected, exiting.")
-            exit()
-        root.withdraw()
-        root.quit()
+        self._load_events()
 
-    root.protocol("WM_DELETE_WINDOW", on_closing)
+    def _on_event_select(self, event_name: str):
+        """Handle event selection."""
+        self.selected_event.set(event_name)
 
-    select_button = ctk.CTkButton(
-        root,
-        text="Select Event",
-        command=on_select_confirm,
-        font=font_select_button,
-        corner_radius=button_corner_radius,
-    )
-    select_button.pack(pady=(10, 10))
+        for btn in self.event_buttons:
+            is_selected = btn.cget("text") == event_name
+            btn.configure(
+                fg_color=COLORS["accent"] if is_selected else "transparent",
+                text_color=COLORS["text_primary"],
+            )
 
-    root.mainloop()
+        short_name = event_name.replace(" Grand Prix", "")
+        self.status_label.configure(
+            text=f"✓ {short_name}", text_color=COLORS["success"]
+        )
 
-    if selected_event is None:
-        logger.error("No event was selected. Exiting application.")
+    def _on_start(self):
+        """Handle start button click."""
+        if not self.selected_event.get():
+            messagebox.showwarning("No Event", "Please select an event first.")
+            return
+
+        sessions = [code for code, var in self.session_vars.items() if var.get()]
+        if not sessions:
+            messagebox.showwarning("No Sessions", "Please select at least one session.")
+            return
+
+        self.result = {
+            "year": int(self.selected_year.get()),
+            "event": self.selected_event.get(),
+            "sessions": sessions,
+            "instagram_enabled": self.instagram_var.get(),
+        }
+
+        self.withdraw()
+        self.quit()
+
+    def get_result(self):
+        """Get the configuration result."""
+        return self.result
+
+
+def run_config_gui() -> dict:
+    """Run the unified configuration GUI.
+
+    Returns:
+        Dict with year, event, sessions, instagram_enabled
+    """
+    app = F1AnalysisApp()
+    app.protocol("WM_DELETE_WINDOW", lambda: (logger.info("Cancelled"), exit()))
+    app.mainloop()
+
+    result = app.get_result()
+    if result is None:
+        logger.error("No configuration selected")
         exit()
 
-    return selected_event
+    app.destroy()
+    return result
 
 
 def get_png_files(folder_path: str) -> list:
@@ -226,13 +389,15 @@ def organize_png_files_name(
                 titles.append(title)
 
         titles_str = "\n• ".join(titles) if titles else "No specific data generated"
-        caption = textwrap.dedent(f"""\
+        caption = textwrap.dedent(
+            f"""\
             🏎️
             « {year} {event_name} Grand Prix »
 
             • {titles_str}
 
-            #F1 #Formula1 #{event_name.replace(" ", "")}GP""")
+            #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
+        )
 
         output_file_path = os.path.join(folder_path, f"{year}_{event_name}_images.txt")
         with open(output_file_path, "w", encoding="utf-8") as f:
@@ -292,164 +457,22 @@ def run_analysis(config: Config, event_name: str) -> dict:
     return results
 
 
-def select_config_gui() -> dict:
-    """GUI for selecting analysis configuration.
-
-    Returns:
-        Dict with year, sessions, enable_all, instagram_enabled
-    """
-    selected_config = {
-        "year": None,
-        "sessions": [],
-        "enable_all": True,
-        "instagram_enabled": False,
-    }
-
-    root = ctk.CTk()
-    root.title("F1 Analysis Configuration")
-
-    window_width = 550
-    window_height = 520
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    center_x = int((screen_width - window_width) / 2)
-    center_y = int((screen_height - window_height) / 2)
-    root.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
-    root.resizable(False, False)
-
-    # Year selection
-    ctk.CTkLabel(root, text="Select Year:", font=("Times New Roman", 16, "bold")).pack(
-        pady=(20, 5)
-    )
-    year_var = ctk.StringVar(value="2026")
-    year_frame = ctk.CTkFrame(root)
-    year_frame.pack(pady=5, padx=20, fill="x")
-
-    years = ["2023", "2024", "2025", "2026"]
-    year_buttons = []
-    for year in years:
-        btn = ctk.CTkButton(
-            year_frame,
-            text=year,
-            width=120,
-            command=lambda y=year: [
-                year_var.set(y),
-                [
-                    b.configure(
-                        fg_color=(
-                            ("gray75", "gray25")
-                            if b.cget("text") == y
-                            else ("gray86", "gray17")
-                        )
-                    )
-                    for b in year_buttons
-                ],
-            ],
-        )
-        btn.pack(side="left", padx=5)
-        year_buttons.append(btn)
-    year_buttons[3].configure(fg_color=("gray75", "gray25"))
-
-    # Session selection
-    ctk.CTkLabel(
-        root, text="Select Sessions (Multiple):", font=("Times New Roman", 16, "bold")
-    ).pack(pady=(20, 5))
-    session_frame = ctk.CTkScrollableFrame(root, width=400, height=180)
-    session_frame.pack(pady=5, padx=20)
-
-    sessions = [
-        ("FP1", "Free Practice 1"),
-        ("FP2", "Free Practice 2"),
-        ("FP3", "Free Practice 3"),
-        ("Q", "Qualifying"),
-        ("SQ", "Sprint Qualifying"),
-        ("S", "Sprint"),
-        ("R", "Race"),
-    ]
-    session_vars = {}
-    for code, name in sessions:
-        var = ctk.BooleanVar(value=(code == "R"))
-        cb = ctk.CTkCheckBox(
-            session_frame,
-            text=f"{name} ({code})",
-            variable=var,
-            font=("Times New Roman", 14),
-        )
-        cb.pack(pady=3, padx=10, anchor="w")
-        session_vars[code] = var
-
-    # Instagram enabled
-    instagram_var = ctk.BooleanVar(value=False)
-    ctk.CTkCheckBox(
-        root,
-        text="Post to Instagram",
-        variable=instagram_var,
-        font=("Times New Roman", 14, "bold"),
-    ).pack(pady=15)
-
-    # Confirm button
-    def on_confirm():
-        selected_config["year"] = int(year_var.get())
-        selected_config["sessions"] = [
-            code for code, var in session_vars.items() if var.get()
-        ]
-        selected_config["enable_all"] = True
-        selected_config["instagram_enabled"] = instagram_var.get()
-
-        if not selected_config["sessions"]:
-            messagebox.showwarning("Warning", "Please select at least one session")
-            return
-
-        root.withdraw()
-        root.quit()
-
-    def on_closing():
-        if not selected_config["sessions"]:
-            logger.error("No sessions selected, exiting")
-            exit()
-        root.withdraw()
-        root.quit()
-
-    root.protocol("WM_DELETE_WINDOW", on_closing)
-
-    ctk.CTkButton(
-        root,
-        text="Start Analysis",
-        command=on_confirm,
-        font=("Times New Roman", 16, "bold"),
-        width=200,
-        height=40,
-    ).pack(pady=20)
-
-    root.mainloop()
-
-    if not selected_config["sessions"]:
-        logger.error("No sessions selected, exiting")
-        exit()
-
-    return selected_config
-
-
 def main():
     """Main entry point."""
     try:
-        # GUI select configuration
-        user_config = select_config_gui()
+        user_config = run_config_gui()
         logger.info(
-            f"User config: Year={user_config['year']}, Sessions={user_config['sessions']}, Instagram={user_config['instagram_enabled']}"
+            f"User config: Year={user_config['year']}, Event={user_config['event']}, "
+            f"Sessions={user_config['sessions']}, Instagram={user_config['instagram_enabled']}"
         )
 
-        # Load base config
         config = get_config("config.json")
         config.year = user_config["year"]
-        config.enable_all = user_config["enable_all"]
+        config.enable_all = True
         config.instagram_enabled = user_config["instagram_enabled"]
 
-        # Select event once for all sessions
-        event_name = select_event_name(config.year)
-        logger.info(f"Selected event: {event_name}")
+        event_name = user_config["event"]
 
-        # Run analysis for each selected session
         all_posts = {}
         for session in user_config["sessions"]:
             config.session_name = session
@@ -461,13 +484,11 @@ def main():
             if post_ig_dict:
                 all_posts[session] = post_ig_dict
 
-        # Post to Instagram if enabled
         if config.instagram_enabled and all_posts:
             for session, posts in all_posts.items():
                 logger.info(f"Uploading to Instagram - Session: {session}")
                 post_to_instagram(posts, config)
 
-        # Organize files
         organize_png_files_name(event_name, config.year, config.folder_path, config)
 
         logger.info("=" * 60)

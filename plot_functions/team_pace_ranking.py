@@ -17,7 +17,6 @@ B_SPLINE_DEG = 2
 
 
 def load_and_process_race_data(race):
-    # Session data should already be loaded by plot_runner
     laps = race.laps.pick_quicklaps(QUICKLAP_THRESHOLD)
     transformed_laps = laps.copy()
     transformed_laps.loc[:, "LapTime (s)"] = laps["LapTime"].dt.total_seconds()
@@ -184,7 +183,8 @@ def generate_styled_caption(year, event_name, suptitle_display_text):
         f"{event_name} Grand Prix ", ""
     )
 
-    caption = textwrap.dedent(f"""\
+    caption = textwrap.dedent(
+        f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -195,7 +195,8 @@ def generate_styled_caption(year, event_name, suptitle_display_text):
     ‣ Swarm plots show individual quick lap times.
     ‣ Dashed line indicates the trend of median lap times across teams.
 
-    #F1 #Formula1 #{event_name.replace(" ", "")}GP #TeamPace""")
+    #F1 #Formula1 #{event_name.replace(" ", "")}GP #TeamPace"""
+    )
     return caption
 
 

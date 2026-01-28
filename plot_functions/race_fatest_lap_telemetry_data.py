@@ -12,7 +12,6 @@ import scienceplots
 import matplotlib
 from . import utils
 
-# Global variables for caption generation consistency
 suptitle_text_global = ""
 subtitle_lower_text_global = ""
 
@@ -23,7 +22,6 @@ def race_fatest_lap_telemetry_data(
     """Plot the telemetry data of the race fastest laps with styled appearance."""
     global suptitle_text_global, subtitle_lower_text_global
 
-    # Note: This function uses mpl_timedelta_support=True (different from others)
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
     )
@@ -31,10 +29,8 @@ def race_fatest_lap_telemetry_data(
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
-    # Session data is already loaded by plot_runner
     race_results = race.results
 
-    # Ensure there are at least two drivers in results
     if len(race_results) < 2:
         print(
             f"Not enough drivers in results for {year} {event_name} {session_name}. Skipping plot."
@@ -48,9 +44,8 @@ def race_fatest_lap_telemetry_data(
     front_row_drivers_abbr = list(race_results["Abbreviation"][:2])
 
     def get_lap_time_str_formatted(lap_time_obj):
-        return f"{lap_time_obj.total_seconds() // 60:.0f}:{lap_time_obj.total_seconds() % 60:06.3f}"  # Ensure 3 decimal places for ms
+        return f"{lap_time_obj.total_seconds() // 60:.0f}:{lap_time_obj.total_seconds() % 60:06.3f}"
 
-    # Modified plotting functions to accept assigned_color from scienceplots cycle
     def plot_telemetry_data_styled(
         ax_param,
         car_data_df,
@@ -81,27 +76,25 @@ def race_fatest_lap_telemetry_data(
             car_data_df["Distance"],
             car_data_df["Speed"],
             color=assigned_color,
-            label=f"{driver_abbr_label}: {lap_time_str_val}",  # Lap time format is fixed in get_lap_time_str_formatted
+            label=f"{driver_abbr_label}: {lap_time_str_val}",
             linestyle=linestyle_val,
         )
 
     def annotate_brake_points_styled(
         ax_param, car_data_df, assigned_color, driver_abbr_label
     ):
-        brake_segments_df = car_data_df[
-            car_data_df["Brake"] > 0.1
-        ]  # Use a threshold for brake
+        brake_segments_df = car_data_df[car_data_df["Brake"] > 0.1]
         if brake_segments_df.empty:
             return
 
         segment_indices_val = (
             brake_segments_df.index.to_series().diff().fillna(1.0).gt(1).cumsum()
-        )  # fillna for first element
+        )
         first_brake_points_df = brake_segments_df.groupby(segment_indices_val).first()
 
         ax_param.scatter(
             first_brake_points_df["Distance"],
-            first_brake_points_df["Brake"] * 100,  # Plot against Brake value for y-pos
+            first_brake_points_df["Brake"] * 100,
             color=assigned_color,
             s=7,
             zorder=5,
@@ -117,13 +110,13 @@ def race_fatest_lap_telemetry_data(
         fig_param.savefig(filename, dpi=dpi_val, bbox_inches=None)
         return filename
 
-    def generate_styled_caption():  # Uses global variables for consistency
-        # Construct caption title from global suptitle
+    def generate_styled_caption():
         base_title_for_caption = suptitle_text_global.replace(f"{year} ", "").replace(
             f"{event_name} Grand Prix ", ""
         )
 
-        return textwrap.dedent(f"""\
+        return textwrap.dedent(
+            f"""\
 🏎️
 « {year} {event_name} Grand Prix »
 
@@ -144,10 +137,10 @@ def race_fatest_lap_telemetry_data(
 \t{driver_data_dict["lap_time_str_list"][1]} (min:s.ms)
 ‣‣ Delta Lap Time: {laptime_diff_str_val} (s)  
 
-#F1 #Formula1 #{event_name.replace(" ", "")}GP""")
+#F1 #Formula1 #{event_name.replace(" ", "")}GP"""
+        )
 
     with plt.style.context(["science", "bright"]):
-        # Attempt to override scienceplots' potential dimension-altering rcParams
         plt.rcParams["figure.dpi"] = DPI
         plt.rcParams["savefig.dpi"] = DPI
         plt.rcParams["figure.autolayout"] = False
@@ -159,7 +152,6 @@ def race_fatest_lap_telemetry_data(
         for ax_item in axes:
             ax_item.set_facecolor("white")
 
-        # Get scienceplots color cycle
         prop_cycle = plt.rcParams["axes.prop_cycle"]
         color_cycle = prop_cycle.by_key()["color"]
 

@@ -430,13 +430,11 @@ def driver_laptimes_scatterplot(
         Dictionary with plot information
     """
     try:
-        # Setup
         utils.setup_matplotlib_style(PLOT_CONFIG)
         utils.load_race_data(
             race, telemetry=False, laps=True, weather=False, logger_obj=logger
         )
 
-        # Get podium finishers
         podium_finishers_abbrs = get_podium_finishers_abbr(race, logger_obj=logger)
         if not podium_finishers_abbrs:
             logger.warning(
@@ -446,7 +444,6 @@ def driver_laptimes_scatterplot(
                 None, "Not enough data for plot.", post, False
             )
 
-        # Get driver laps
         driver_laps_map = {
             abbr: utils.get_driver_laps_cleaned(
                 race, abbr, QUICKLAP_THRESHOLD, logger_obj=logger
@@ -468,7 +465,6 @@ def driver_laptimes_scatterplot(
                 None, "No valid lap data for plot.", post, False
             )
 
-        # Calculate scaling
         all_laps_for_scaling = pd.concat(valid_driver_laps_list, ignore_index=True)
 
         min_overall_time = (
@@ -504,12 +500,10 @@ def driver_laptimes_scatterplot(
 
         stored_data = initialize_driver_data_storage()
 
-        # Create plot
         with plt.style.context(["science", "bright"]):
             utils.setup_matplotlib_style(PLOT_CONFIG)
             fig, ax = utils.create_figure_and_axis(PLOT_CONFIG)
 
-            # Get colors
             prop_cycle = plt.rcParams["axes.prop_cycle"]
             driver_plot_colors = [
                 prop_cycle.by_key()["color"][i % len(prop_cycle.by_key()["color"])]
@@ -526,7 +520,6 @@ def driver_laptimes_scatterplot(
                         current_y_lim_pre[1] - current_y_lim_pre[0]
                     )
 
-            # Process each driver
             processed_drivers_count = 0
             for i, driver_abbr_item in enumerate(podium_finishers_abbrs):
                 driver_laps_data = driver_laps_map.get(driver_abbr_item)
@@ -566,20 +559,16 @@ def driver_laptimes_scatterplot(
                     None, "Failed to process driver data.", post, False
                 )
 
-            # Configure axes and labels
             set_plot_labels_styled(ax, race, min_overall_time, max_overall_time)
             suptitle_text, subtitle_lower_text = add_plot_titles_styled(
                 fig, year, event_name, stored_data["drivers_abbr_list"]
             )
 
-            # Add legends
             add_legends(ax, fig, COMPOUND_COLORS, stored_data["legend_elements"])
 
-            # Save plot
             filename = save_plot_and_get_filename(fig, suptitle_text)
             plt.close(fig)
 
-            # Create caption
             caption = create_styled_caption(
                 year, event_name, suptitle_text, subtitle_lower_text, stored_data
             )

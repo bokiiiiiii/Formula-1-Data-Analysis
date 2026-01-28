@@ -18,14 +18,11 @@ import fastf1
 import fastf1.plotting
 from matplotlib.figure import Figure
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
-# Ignore specific warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
 warnings.filterwarnings("ignore", category=UserWarning, module="fastf1")
 
-# Compound colors - fallback for newer FastF1 versions that removed COMPOUND_COLORS
 COMPOUND_COLORS = {
     "SOFT": "#FF3333",
     "MEDIUM": "#FFCC00",
@@ -46,18 +43,15 @@ def get_compound_color(compound: str) -> str:
     Returns:
         Color hex string
     """
-    # Try FastF1's get_compound_color first (for newer versions)
     if hasattr(fastf1.plotting, "get_compound_color"):
         try:
             return fastf1.plotting.get_compound_color(compound, session=None)
         except Exception:
             pass
-    # Try legacy COMPOUND_COLORS
     if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
         return fastf1.plotting.COMPOUND_COLORS.get(
             compound, COMPOUND_COLORS.get(compound, "#808080")
         )
-    # Use our fallback
     return COMPOUND_COLORS.get(compound, "#808080")
 
 
@@ -75,14 +69,11 @@ def get_point_finishers_abbr(race: fastf1.core.Session, top_n: int = 10) -> List
         logger.warning("No results available")
         return []
 
-    # Get finishers sorted by position
     results = race.results.copy()
 
-    # Filter out drivers who didn't finish if ClassifiedPosition exists
     if "ClassifiedPosition" in results.columns:
         results = results[results["ClassifiedPosition"].notna()]
 
-    # Get top N finishers
     if len(results) > top_n:
         results = results.head(top_n)
 
@@ -193,7 +184,6 @@ def setup_matplotlib_style(config: PlotConfig) -> None:
         misc_mpl_mods=False,
     )
 
-    # Set rcParams
     plt.rcParams["figure.dpi"] = config.dpi
     plt.rcParams["savefig.dpi"] = config.dpi
     plt.rcParams["figure.autolayout"] = False
@@ -239,10 +229,8 @@ def save_plot(
     """
     log = logger_obj or logger
 
-    # Create folder if it doesn't exist
     Path(folder_path).mkdir(parents=True, exist_ok=True)
 
-    # Clean filename
     safe_filename = (
         filename.replace(" ", "_").replace(":", "").replace("/", "_").replace("\\", "_")
     )
@@ -353,12 +341,10 @@ def get_driver_laps_cleaned(
         log.debug(f"No laps found for driver {driver_abbr}")
         return pd.DataFrame()
 
-    # Add lap time in seconds if not present
     if "LapTime(s)" not in laps.columns:
         laps = laps.copy()
         laps.loc[:, "LapTime(s)"] = laps["LapTime"].dt.total_seconds()
 
-    # Standardize compound names
     if "Compound" in laps.columns:
         laps = laps.copy()
         laps.loc[:, "Compound"] = laps["Compound"].fillna("UNKNOWN")
@@ -380,7 +366,6 @@ def get_driver_laps_cleaned(
         laps = laps.copy()
         laps.loc[:, "Compound"] = "UNKNOWN"
 
-    # Add stint lap number if not present
     if "StintLapNumber" not in laps.columns:
         laps["StintLapNumber"] = (
             laps.groupby("Stint")["LapNumber"]
@@ -569,7 +554,6 @@ def configure_plot_params(dpi: int = 125):
     plt.rcParams["savefig.bbox"] = None
 
 
-# Common constants
 DEFAULT_DPI = 125
 DEFAULT_FIG_SIZE = (8.64, 10.8)
 
@@ -597,7 +581,6 @@ def load_session_data(race: fastf1.core.Session):
         color_scheme=None,
         misc_mpl_mods=False,
     )
-    # Session is already loaded by PlotRunner - no need to load again
 
 
 def save_plot_to_file(fig, title: str, dpi: int = DEFAULT_DPI) -> str:
@@ -637,7 +620,8 @@ def create_instagram_caption(
     if hashtags:
         base_hashtags = f"{base_hashtags} {hashtags}"
 
-    return textwrap.dedent(f"""\
+    return textwrap.dedent(
+        f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -645,7 +629,8 @@ def create_instagram_caption(
 
     {description}
 
-    {base_hashtags}""")
+    {base_hashtags}"""
+    )
 
 
 def get_top_n_finishers(race, n: int = 10) -> list[str]:
