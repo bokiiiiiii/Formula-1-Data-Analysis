@@ -13,9 +13,8 @@ from config import Config, get_config
 from logger_config import setup_logging, get_logger
 from plot_functions import utils
 from plot_functions import *
+from plot_functions.plot_runner import PlotRunner
 from auto_ig_post import InstagramPoster
-
-from f1_analyzer import F1Analyzer
 from retry_utils import retry_on_network_error
 from performance_monitor import measure
 
@@ -38,10 +37,10 @@ def get_event_list_from_api(year: int) -> list:
     """
     try:
         logger.info(f"Fetching event list for {year} from FastF1 API...")
-        analyzer = F1Analyzer(year, "Bahrain", "R")  # Temporary instance
-        event_names = analyzer.get_event_names()
+        schedule = fastf1.get_event_schedule(year)
+        event_names = schedule["EventName"].dropna().unique().tolist()
         logger.info(f"Found {len(event_names)} events")
-        return event_names
+        return sorted(event_names)
     except Exception as e:
         logger.error(f"API fetch failed: {e}")
         logger.warning("Using fallback events")
@@ -276,8 +275,9 @@ def post_to_instagram(post_dict: dict, config: Config) -> None:
         logger.error(f"Instagram posting error: {str(e)}")
 
 
+@retry_on_network_error(max_attempts=3, delay=5.0)
 def run_analysis(config: Config, event_name: str) -> dict:
-    """Run the F1 data analysis pipeline.
+    """Run F1 data analysis using PlotRunner.
 
     Args:
         config: Configuration object
@@ -286,80 +286,12 @@ def run_analysis(config: Config, event_name: str) -> dict:
     Returns:
         Dictionary with analysis results
     """
-    logger.info("=" * 60)
-    logger.info(f"Starting F1 Data Analysis")
-    logger.info(f"Year: {config.year}, Session: {config.session_name}")
-    logger.info("=" * 60)
-
-    # Setup matplotlib
-    utils.setup_matplotlib_style(
-        utils.PlotConfig(
-            dpi=config.figure_dpi,
-            fig_width_inch=config.figure_width,
-            fig_height_inch=config.figure_height,
-        )
+    runner = PlotRunner(config)
+    results = runner.run_all(
+        config.year, event_name, config.session_name, config.instagram_enabled
     )
-
-    # Enable cache
-    utils.enable_cache(config.cache_path)
-    plt.ion()
-
-    # Create results directory
-    Path(config.folder_path).mkdir(parents=True, exist_ok=True)
-
-    # Process plot functions
-    post_ig_dict = {}
-    processed_count = 0
-
-    for func_name, func_config in config.plot_functions.items():
-        # Check if should process
-        if not config.should_process_plot_function(func_name):
-            logger.debug(f"Skipping {func_name} (not in {config.session_name})")
-            continue
-
-        # Check if enabled
-        if not (config.enable_all or func_config.enabled):
-            logger.debug(f"Skipping {func_name} (disabled)")
-            continue
-
-        try:
-            logger.info(f"Processing: {func_name}")
-
-            plot_func = globals().get(func_name)
-
-            if not plot_func:
-                logger.warning(f"Function {func_name} not found")
-                continue
-
-            # Load race data
-            race = fastf1.get_session(
-                config.year,
-                event_name,
-                func_config.session,
-            )
-
-            # Call plot function
-            result = plot_func(
-                config.year,
-                event_name,
-                config.session_name,
-                race,
-                config.instagram_enabled,
-            )
-
-            post_ig_dict[func_name] = result
-            processed_count += 1
-            logger.info(f"Completed: {func_name}")
-
-        except Exception as e:
-            logger.error(f"Error processing {func_name}: {str(e)}", exc_info=True)
-
-    logger.info(f"Processed {processed_count}/{len(config.plot_functions)} functions")
-
-    plt.ioff()
-    plt.show(block=False)
-
-    return post_ig_dict
+    runner.cleanup()
+    return results
 
 
 def select_config_gui() -> dict:

@@ -13,6 +13,8 @@ import textwrap
 import numpy as np
 import scienceplots
 import matplotlib
+from . import utils
+from .utils import COMPOUND_COLORS, get_compound_color
 import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
@@ -29,18 +31,8 @@ optimized_k_global = DEFAULT_CORRECTION
 
 
 def load_race_data(race):
-    try:
-        race.load()
-    except Exception as e:
-        raise RuntimeError(f"Error loading race data: {e}")
-
-
-def get_winner_abbr(race):
-    results = race.results
-    if results is None or results.empty:
-        print("Warning: Results are empty. Cannot pick winner.")
-        return []
-    return list(results["Abbreviation"][:1])
+    """No-op: Session data is already loaded by PlotRunner."""
+    pass
 
 
 def optimize_fuel_correction(laps_df):
@@ -186,17 +178,7 @@ def get_driver_laps_cleaned_fuel_corrected(race, driver_abbr):
 def plot_driver_laps_styled_fuel_corrected(
     ax, driver_laps_df, driver_idx, assigned_driver_color
 ):
-    if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
-        palette = {**fastf1.plotting.COMPOUND_COLORS, "UNKNOWN": "black"}
-    else:
-        palette = {
-            "SOFT": "red",
-            "MEDIUM": "yellow",
-            "HARD": "white",
-            "INTERMEDIATE": "green",
-            "WET": "blue",
-            "UNKNOWN": "black",
-        }
+    palette = {**COMPOUND_COLORS, "UNKNOWN": "black"}
 
     sns.scatterplot(
         data=driver_laps_df,
@@ -232,10 +214,7 @@ def plot_stint_compound_trendlines_styled(
         if len(group) < 3:
             continue
 
-        if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
-            c_color = fastf1.plotting.COMPOUND_COLORS.get(compound_name, assigned_color)
-        else:
-            c_color = assigned_color
+        c_color = COMPOUND_COLORS.get(compound_name, assigned_color)
 
         reg_color = c_color if compound_name != "HARD" else "grey"
 
@@ -504,15 +483,13 @@ def process_driver_data_single_fuel_corrected(
 def driver_fuel_corrected_laptimes_gaussian_processes(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
-    DPI = 125
+    utils.setup_fastf1_plotting()
+    DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
     load_race_data(race)
 
-    drivers_to_plot_abbrs = get_winner_abbr(race)
+    drivers_to_plot_abbrs = utils.get_winner(race)
 
     if not drivers_to_plot_abbrs:
         return {"filename": None, "caption": "Not enough data for plot.", "post": False}
@@ -584,15 +561,9 @@ def driver_fuel_corrected_laptimes_gaussian_processes(
         if global_plot_range_y_val <= 0:
             global_plot_range_y_val = 1.0
 
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
 
         prop_cycle = plt.rcParams["axes.prop_cycle"]
@@ -669,18 +640,7 @@ def driver_fuel_corrected_laptimes_gaussian_processes(
                 c for c in compound_order if c in unique_compounds
             ]
 
-            compound_colors_dict = {}
-            if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
-                compound_colors_dict = fastf1.plotting.COMPOUND_COLORS
-            else:
-                compound_colors_dict = {
-                    "SOFT": "red",
-                    "MEDIUM": "yellow",
-                    "HARD": "white",
-                    "INTERMEDIATE": "green",
-                    "WET": "blue",
-                    "UNKNOWN": "black",
-                }
+            compound_colors_dict = COMPOUND_COLORS
 
             compound_legend_handles = [
                 Line2D(
@@ -776,11 +736,7 @@ def driver_fuel_corrected_laptimes_gaussian_processes(
                     compound[:3].upper() if len(compound) > 3 else compound.upper()
                 )
 
-                c_text_color = "black"
-                if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
-                    c_text_color = fastf1.plotting.COMPOUND_COLORS.get(
-                        compound, "black"
-                    )
+                c_text_color = COMPOUND_COLORS.get(compound, "black")
 
                 if compound == "HARD":
                     c_text_color = "grey"

@@ -25,6 +25,69 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
 warnings.filterwarnings("ignore", category=UserWarning, module="fastf1")
 
+# Compound colors - fallback for newer FastF1 versions that removed COMPOUND_COLORS
+COMPOUND_COLORS = {
+    "SOFT": "#FF3333",
+    "MEDIUM": "#FFCC00",
+    "HARD": "#CCCCCC",
+    "INTERMEDIATE": "#39B54A",
+    "WET": "#00AEEF",
+    "UNKNOWN": "#000000",
+    "TEST_UNKNOWN": "#808080",
+}
+
+
+def get_compound_color(compound: str) -> str:
+    """Get color for tire compound.
+
+    Args:
+        compound: Tire compound name (SOFT, MEDIUM, HARD, etc.)
+
+    Returns:
+        Color hex string
+    """
+    # Try FastF1's get_compound_color first (for newer versions)
+    if hasattr(fastf1.plotting, "get_compound_color"):
+        try:
+            return fastf1.plotting.get_compound_color(compound, session=None)
+        except Exception:
+            pass
+    # Try legacy COMPOUND_COLORS
+    if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
+        return fastf1.plotting.COMPOUND_COLORS.get(
+            compound, COMPOUND_COLORS.get(compound, "#808080")
+        )
+    # Use our fallback
+    return COMPOUND_COLORS.get(compound, "#808080")
+
+
+def get_point_finishers_abbr(race: fastf1.core.Session, top_n: int = 10) -> List[str]:
+    """Get abbreviations of drivers who finished in points positions.
+
+    Args:
+        race: FastF1 session object
+        top_n: Number of top finishers to return (default 10 for points)
+
+    Returns:
+        List of driver abbreviations for point finishers
+    """
+    if race.results is None or race.results.empty:
+        logger.warning("No results available")
+        return []
+
+    # Get finishers sorted by position
+    results = race.results.copy()
+
+    # Filter out drivers who didn't finish if ClassifiedPosition exists
+    if "ClassifiedPosition" in results.columns:
+        results = results[results["ClassifiedPosition"].notna()]
+
+    # Get top N finishers
+    if len(results) > top_n:
+        results = results.head(top_n)
+
+    return list(results["Abbreviation"])
+
 
 class PlotConfig:
     """Configuration class for plot settings."""
@@ -461,3 +524,167 @@ def enable_cache(cache_path: str = "../cache") -> None:
         logger.info(f"Cache enabled at {cache_path}")
     except Exception as e:
         logger.warning(f"Failed to enable cache: {str(e)}")
+
+
+def create_styled_figure(
+    figsize: Tuple[float, float] = (8.64, 10.8),
+    dpi: int = 125,
+    facecolor: str = "white",
+) -> Tuple[Figure, matplotlib.axes.Axes]:
+    """Create a matplotlib figure with scienceplots style.
+
+    Args:
+        figsize: Figure size in inches (width, height)
+        dpi: Dots per inch
+        facecolor: Background color
+
+    Returns:
+        Tuple of (figure, axis)
+    """
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    fig.patch.set_facecolor(facecolor)
+    ax.set_facecolor(facecolor)
+    return fig, ax
+
+
+def apply_scienceplots_style():
+    """Apply scienceplots 'science' and 'bright' styles as context manager.
+
+    Returns:
+        Context manager for plt.style.context
+    """
+    return plt.style.context(["science", "bright"])
+
+
+def configure_plot_params(dpi: int = 125):
+    """Configure common matplotlib rcParams for plots.
+
+    Args:
+        dpi: Dots per inch for figure and savefig
+    """
+    plt.rcParams["figure.dpi"] = dpi
+    plt.rcParams["savefig.dpi"] = dpi
+    plt.rcParams["figure.autolayout"] = False
+    plt.rcParams["figure.constrained_layout.use"] = False
+    plt.rcParams["savefig.bbox"] = None
+
+
+# Common constants
+DEFAULT_DPI = 125
+DEFAULT_FIG_SIZE = (8.64, 10.8)
+
+
+def setup_fastf1_plotting():
+    """Setup FastF1 plotting with standard configuration."""
+    fastf1.plotting.setup_mpl(
+        mpl_timedelta_support=False,
+        color_scheme=None,
+        misc_mpl_mods=False,
+    )
+
+
+def load_session_data(race: fastf1.core.Session):
+    """Setup matplotlib for session data visualization.
+
+    Note: Session data is already loaded by PlotRunner.
+    This function only sets up matplotlib configuration.
+
+    Args:
+        race: FastF1 session object
+    """
+    fastf1.plotting.setup_mpl(
+        mpl_timedelta_support=False,
+        color_scheme=None,
+        misc_mpl_mods=False,
+    )
+    # Session is already loaded by PlotRunner - no need to load again
+
+
+def save_plot_to_file(fig, title: str, dpi: int = DEFAULT_DPI) -> str:
+    """Save plot to file with standardized naming.
+
+    Args:
+        fig: Matplotlib figure object
+        title: Plot title (will be sanitized for filename)
+        dpi: DPI for saving
+
+    Returns:
+        Path to saved file
+    """
+    filename = (
+        f"../pic/{title.replace(' ', '_').replace(':', '').replace('/', '_')}.png"
+    )
+    fig.savefig(filename, dpi=dpi, bbox_inches=None)
+    return filename
+
+
+def create_instagram_caption(
+    year: int, event_name: str, plot_title: str, description: str, hashtags: str = ""
+) -> str:
+    """Create standardized Instagram caption.
+
+    Args:
+        year: Season year
+        event_name: Event name (e.g., "Abu Dhabi")
+        plot_title: Title of the plot
+        description: Main description text
+        hashtags: Additional hashtags (optional)
+
+    Returns:
+        Formatted caption string
+    """
+    base_hashtags = f"#F1 #Formula1 #{event_name.replace(' ', '')}GP"
+    if hashtags:
+        base_hashtags = f"{base_hashtags} {hashtags}"
+
+    return textwrap.dedent(
+        f"""\
+    🏎️
+    « {year} {event_name} Grand Prix »
+
+    • {plot_title}
+
+    {description}
+
+    {base_hashtags}"""
+    )
+
+
+def get_top_n_finishers(race, n: int = 10) -> list[str]:
+    """Get abbreviations of top N finishers.
+
+    Args:
+        race: FastF1 session object
+        n: Number of finishers to return
+
+    Returns:
+        List of driver abbreviations
+    """
+    if race.results is None or race.results.empty:
+        logger.warning("Race results not loaded or empty")
+        return []
+    return list(race.results.loc[race.results["Position"] <= n, "Abbreviation"])
+
+
+def get_winner(race) -> list[str]:
+    """Get winner abbreviation.
+
+    Args:
+        race: FastF1 session object
+
+    Returns:
+        List containing winner abbreviation
+    """
+    return get_top_n_finishers(race, n=1)
+
+
+def get_podium_finishers(race) -> list[str]:
+    """Get podium finishers abbreviations.
+
+    Args:
+        race: FastF1 session object
+
+    Returns:
+        List of top 3 driver abbreviations
+    """
+    return get_top_n_finishers(race, n=3)

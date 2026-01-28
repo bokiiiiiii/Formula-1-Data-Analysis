@@ -12,7 +12,7 @@
       "session": "FP1"
     },
     "annotated_qualifying_flying_lap": {
-      "enabled": false,
+      "enabled": true,
       "session": "Q"
     },
     "annotated_race_fatest_lap": {

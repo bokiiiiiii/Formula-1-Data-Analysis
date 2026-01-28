@@ -12,6 +12,7 @@ import fastf1
 import fastf1.plotting
 
 from . import utils
+from .utils import COMPOUND_COLORS, get_compound_color
 from logger_config import get_logger
 
 # Logger
@@ -59,7 +60,7 @@ def plot_driver_laps_styled(
         ax=ax,
         hue="Compound",
         palette={
-            **fastf1.plotting.COMPOUND_COLORS,
+            **COMPOUND_COLORS,
             "UNKNOWN": "black",
         },
         hue_order=[
@@ -116,9 +117,7 @@ def plot_stint_trendlines_styled(
         if compound_for_stint == "HARD":
             reg_color = "grey"
         else:
-            reg_color = fastf1.plotting.COMPOUND_COLORS.get(
-                compound_for_stint, assigned_color
-            )
+            reg_color = COMPOUND_COLORS.get(compound_for_stint, assigned_color)
 
         collections_before = list(ax.collections)
 
@@ -159,7 +158,7 @@ def plot_stint_trendlines_styled(
         slope_text_value = f"{slope_val:+.3f} s/lap"
         slope_str_list.append(f"{slope_val:+.3f}")
 
-        tire_color = fastf1.plotting.COMPOUND_COLORS.get(compound_for_stint, "grey")
+        tire_color = COMPOUND_COLORS.get(compound_for_stint, "grey")
         driver_marker_shape = MARKERS[driver_idx % len(MARKERS)]
         marker_center_x = mid_lap - 2.0
         text_start_x = mid_lap - 1.3
@@ -574,9 +573,7 @@ def driver_laptimes_scatterplot(
             )
 
             # Add legends
-            add_legends(
-                ax, fig, fastf1.plotting.COMPOUND_COLORS, stored_data["legend_elements"]
-            )
+            add_legends(ax, fig, COMPOUND_COLORS, stored_data["legend_elements"])
 
             # Save plot
             filename = save_plot_and_get_filename(fig, suptitle_text)

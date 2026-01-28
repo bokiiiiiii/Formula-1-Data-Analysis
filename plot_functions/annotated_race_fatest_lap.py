@@ -6,6 +6,7 @@ import matplotlib
 import fastf1
 import fastf1.plotting
 import fastf1.utils
+from . import utils
 
 
 def annotated_race_fatest_lap(
@@ -259,14 +260,15 @@ def annotated_race_fatest_lap(
 
         return v_min, v_max, d_max
 
+    # Note: Using mpl_timedelta_support=True for this plot (special requirement)
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
     )
 
-    DPI = 125
+    DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
-    race.load()
+    # Session data is already loaded by plot_runner
     race_results = race.results
     # Consider taking top 2 based on fastest lap, not just first two in results if they DNF'd early
     # For now, sticking to original logic of top 2 from results.
@@ -279,15 +281,9 @@ def annotated_race_fatest_lap(
         )
         return {"filename": None, "caption": "Not enough data for plot.", "post": False}
 
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
         v_min, v_max, d_max = float("inf"), float("-inf"), float("-inf")
 

@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import scienceplots
 import matplotlib
+from . import utils
 
 # Global variables for caption generation consistency
 suptitle_text_global = ""
@@ -22,15 +23,15 @@ def race_fatest_lap_telemetry_data(
     """Plot the telemetry data of the race fastest laps with styled appearance."""
     global suptitle_text_global, subtitle_lower_text_global
 
+    # Note: This function uses mpl_timedelta_support=True (different from others)
     fastf1.plotting.setup_mpl(
         mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
     )
 
-    # Plotting constants for consistent sizing
-    DPI = 125
-    FIG_SIZE = (1080 / DPI, 1350 / DPI)  # Target 1080x1350 pixels
+    DPI = utils.DEFAULT_DPI
+    FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
-    race.load()
+    # Session data is already loaded by plot_runner
     race_results = race.results
 
     # Ensure there are at least two drivers in results

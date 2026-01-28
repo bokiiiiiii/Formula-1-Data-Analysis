@@ -13,20 +13,60 @@ from scipy import stats
 from matplotlib.ticker import MaxNLocator
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from . import utils
 
 # Advanced Fitting
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel as C
 from sklearn.preprocessing import StandardScaler
 
-# Import track-specific data
-from track_data import (
-    get_safety_car_probability,
-    get_fuel_consumption_factor,
-)
-
 # Filter warnings
 warnings.filterwarnings("ignore")
+
+
+def get_safety_car_probability(event_name: str) -> float:
+    """Get safety car probability for specific event.
+
+    Args:
+        event_name: Name of the event
+
+    Returns:
+        Probability of safety car (0.0-1.0)
+    """
+    # Default safety car probabilities by event
+    sc_probabilities = {
+        "Monaco Grand Prix": 0.8,
+        "Singapore Grand Prix": 0.7,
+        "Baku": 0.65,
+        "Azerbaijan Grand Prix": 0.65,
+        "Monza": 0.3,
+        "Italian Grand Prix": 0.3,
+        "Spa": 0.4,
+        "Belgian Grand Prix": 0.4,
+    }
+    return sc_probabilities.get(event_name, 0.25)  # Default 25% for other events
+
+
+def get_fuel_consumption_factor(event_name: str) -> float:
+    """Get fuel consumption factor for specific event.
+
+    Args:
+        event_name: Name of the event
+
+    Returns:
+        Fuel consumption factor (multiplier)
+    """
+    # Default fuel consumption factors by event
+    fuel_factors = {
+        "Monaco Grand Prix": 0.85,  # Lower consumption in tight track
+        "Singapore Grand Prix": 1.15,  # Higher consumption in hot/long race
+        "Monza": 0.9,  # High speed, good fuel efficiency
+        "Italian Grand Prix": 0.9,
+    }
+    return fuel_factors.get(
+        event_name, 1.0
+    )  # Default 1.0 (no correction) for other events
+
 
 # Global Constants
 DPI = 125
@@ -70,28 +110,8 @@ DEFAULT_CURVES = {
 
 
 def load_race_data(race):
-    try:
-        race.load()
-    except Exception as e:
-        raise RuntimeError(f"Error loading race data: {e}")
-
-
-def get_winner_abbr(race):
-    try:
-        return race.results.iloc[0]["Abbreviation"]
-    except:
-        return None
-
-
-def save_plot_and_get_filename(fig, suptitle_text_param, dpi_val):
-    if not os.path.exists("../pic"):
-        os.makedirs("../pic", exist_ok=True)
-    filename_safe_title = (
-        suptitle_text_param.replace(" ", "_").replace(":", "").replace("/", "_")
-    )
-    filename = f"../pic/{filename_safe_title}.png"
-    fig.savefig(filename, dpi=dpi_val)
-    return filename
+    """No-op: Session data is already loaded by PlotRunner."""
+    pass
 
 
 def create_styled_caption_monte_carlo(
@@ -581,9 +601,10 @@ def monte_carlo_race_strategy(
     load_race_data(race)
 
     # 1. Data & Physics
-    winner_abbr = get_winner_abbr(race)
-    if not winner_abbr:
+    winner_list = utils.get_winner(race)
+    if not winner_list:
         return {"filename": None, "caption": "No winner found.", "post": False}
+    winner_abbr = winner_list[0]
 
     stint_stats = calculate_actual_stint_stats(race)
     deg_curves, deg_source, fuel_k = calculate_race_degradation_curves(
@@ -641,15 +662,9 @@ def monte_carlo_race_strategy(
     best_strategy_name = sorted_strategies[0]
 
     # 6. Plotting with Matched Style
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor("white")
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI)
         ax.set_facecolor("white")
 
         plot_strategy_distribution_styled(
@@ -665,7 +680,7 @@ def monte_carlo_race_strategy(
         plt.suptitle(suptitle_text_global, fontsize=18, color="black")
         plt.figtext(0.5, 0.94, subtitle_upper, ha="center", fontsize=15, color="black")
 
-        filename = save_plot_and_get_filename(fig, suptitle_text_global, DPI)
+        filename = utils.save_plot_to_file(fig, suptitle_text_global, DPI)
         plt.close(fig)
 
     caption = create_styled_caption_monte_carlo(

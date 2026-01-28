@@ -8,6 +8,7 @@ import matplotlib
 
 from fastf1.ergast import Ergast
 from logger_config import get_logger
+from . import utils
 
 logger = get_logger(__name__)
 
@@ -225,10 +226,7 @@ def plot_track_with_annotated_corners(
     SUPTITLE_Y = 0.93
     SUBTITLE_Y = 0.89
 
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
-    race.load()
+    utils.load_session_data(race)
 
     circuit_name, locality, country, _ = get_circuit_info_by_country_name(
         year, event_name
@@ -266,6 +264,9 @@ def plot_track_with_annotated_corners(
                 "post": False,
             }
 
+        # Get circuit info inside try block
+        circuit_info_obj = race.get_circuit_info()
+
     except Exception as e:
         logger.error(f"Error getting lap/position data: {e}")
         return {
@@ -274,19 +275,9 @@ def plot_track_with_annotated_corners(
             "post": False,
         }
 
-    circuit_info_obj = race.get_circuit_info()
-
-    with plt.style.context(["science", "bright"]):
-        plt.rcParams["figure.dpi"] = DPI
-        plt.rcParams["savefig.dpi"] = DPI
-
-        plt.rcParams["figure.autolayout"] = False
-        plt.rcParams["figure.constrained_layout.use"] = False
-
-        plt.rcParams["savefig.bbox"] = None
-
-        fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=DPI)
-        fig.patch.set_facecolor(BACKGROUND_COLOR)
+    with utils.apply_scienceplots_style():
+        utils.configure_plot_params(DPI)
+        fig, ax = utils.create_styled_figure(FIG_SIZE, DPI, BACKGROUND_COLOR)
         ax.set_facecolor(BACKGROUND_COLOR)
 
         _, track_angle_rad_val = plot_track_styled(ax, pos_data, circuit_info_obj)
