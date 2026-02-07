@@ -6,6 +6,7 @@ import textwrap
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
@@ -194,24 +195,34 @@ def driver_g_g_diagram(
                 team_color = "black"
             driver_labels[abbr] = (team, team_color)
 
-        # Plot both drivers (first driver behind, second on top)
-        scatter_objs = {}
+        # Plot both drivers interleaved so neither consistently covers the other
+        all_g_lat_arr = []
+        all_g_long_arr = []
+        all_colors_arr = []
+
         for idx, abbr in enumerate(drivers):
             g_long, g_lat, spd = driver_data[abbr]
             cmap = plt.get_cmap(DRIVER_CMAPS[idx])
-            sc = ax.scatter(
-                g_lat,
-                g_long,
-                c=spd,
-                cmap=cmap,
-                norm=norm,
-                s=SCATTER_SIZE,
-                alpha=SCATTER_ALPHA,
-                edgecolors="none",
-                rasterized=True,
-                zorder=2 + idx,
-            )
-            scatter_objs[abbr] = (sc, cmap, idx)
+            rgba = cmap(norm(spd))
+            rgba[:, 3] = SCATTER_ALPHA
+            all_g_lat_arr.append(g_lat)
+            all_g_long_arr.append(g_long)
+            all_colors_arr.append(rgba)
+
+        all_g_lat_arr = np.concatenate(all_g_lat_arr)
+        all_g_long_arr = np.concatenate(all_g_long_arr)
+        all_colors_arr = np.concatenate(all_colors_arr)
+
+        perm = np.random.permutation(len(all_g_lat_arr))
+        ax.scatter(
+            all_g_lat_arr[perm],
+            all_g_long_arr[perm],
+            c=all_colors_arr[perm],
+            s=SCATTER_SIZE,
+            edgecolors="none",
+            rasterized=True,
+            zorder=2,
+        )
 
         # Reference friction circles
         for r in G_CIRCLE_RADII:
@@ -259,8 +270,10 @@ def driver_g_g_diagram(
 
         cax_list = [cax_0, cax_1]
         for idx, abbr in enumerate(drivers):
-            sc, _, _ = scatter_objs[abbr]
-            cbar = fig.colorbar(sc, cax=cax_list[idx])
+            cmap = plt.get_cmap(DRIVER_CMAPS[idx])
+            sm = ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            cbar = fig.colorbar(sm, cax=cax_list[idx])
             cbar.ax.tick_params(labelsize=7, colors="black")
             if idx == 0:
                 cbar.ax.set_yticklabels([])
