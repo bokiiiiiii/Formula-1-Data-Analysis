@@ -51,6 +51,10 @@
       "enabled": true,
       "session": "R"
     },
+    "driver_g_g_diagram": {
+      "enabled": true,
+      "session": "R"
+    },
     "annotated_sprint_qualifying_flying_lap": {
       "enabled": true,
       "session": "SQ"
