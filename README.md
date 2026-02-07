@@ -45,6 +45,9 @@ The project generates a wide variety of analytical plots:
 - 🏆 **Team pace ranking** - Comparative team performance
 - 🎲 **Monte Carlo race strategy simulation** - Probabilistic strategy analysis
 
+#### Vehicle Dynamics
+- 🎯 **G-G diagram (friction circle)** - Longitudinal vs lateral acceleration with speed-mapped colours
+
 ### 💾 Output Management
 - High-quality PNG image export
 - Automatic caption generation for social media
@@ -169,6 +172,7 @@ Formula-1-Data-Analysis/
 │   ├── driver_fuel_corrected_laptimes_scatterplot.py
 │   ├── driver_laptimes_distribution.py
 │   ├── driver_laptimes_scatterplot.py
+│   ├── driver_g_g_diagram.py
 │   ├── driver_race_evolution_heatmap.py
 │   ├── monte_carlo_race_strategy.py
 │   ├── plot_track_with_annotated_corners.py
@@ -202,95 +206,6 @@ Formula-1-Data-Analysis/
 
 See [requirements.txt](requirements.txt) for complete dependency list.
 
-## Features in Detail
-
-### Telemetry Analysis
-The project provides detailed telemetry analysis including:
-- Speed traces throughout the lap
-- Throttle, brake, and gear selection
-- DRS activation zones
-- Corner-by-corner performance breakdown
-
-### Fuel-Corrected Analysis
-Advanced fuel correction algorithms adjust lap times for fuel load, providing:
-- Fair performance comparison across the race
-- Identification of true pace vs. fuel-affected pace
-- Gaussian Process regression for smooth trend analysis
-
-### Monte Carlo Simulation
-Probabilistic race strategy simulation considering:
-- Pit stop timing variations
-- Tire degradation models
-- Safety car probabilities
-- Strategic decision outcomes
-
-## Troubleshooting
-
-### Common Issues
-
-1. **FastF1 API Errors**
-   - The project includes automatic retry logic
-   - Check your internet connection
-   - Verify the event name and year are correct
-
-2. **Missing Data**
-   - Some sessions may not have complete telemetry data
-   - Sprint races have different data availability
-   - Check FastF1 cache directory
-
-3. **Instagram Posting Fails**
-   - Verify credentials in `config.json`
-   - Ensure Playwright is properly installed: `playwright install`
-   - Check Instagram API rate limits
-
-4. **Memory Issues with Large Datasets**
-   - Close other applications
-   - Process one session at a time
-   - Clear FastF1 cache if needed
-
-## Performance
-
-The project includes performance monitoring:
-- Execution time tracking for each plot function
-- Memory usage monitoring
-- Detailed logging for debugging
-- FastF1 cache optimization
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues for:
-- New plot types
-- Performance improvements
-- Bug fixes
-- Documentation enhancements
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- **FastF1**: For providing the excellent F1 data API
-- **F1 Community**: For inspiration and feedback
-- **Contributors**: Everyone who has contributed to this project
-
-## Contact
-
-For questions or collaboration:
-- Instagram: [@f1.data.analysis](https://www.instagram.com/f1.data.analysis/)
-- GitHub: [bokiiiiiii/Formula-1-Data-Analysis](https://github.com/bokiiiiiii/Formula-1-Data-Analysis)
-
-## Changelog
-
-### Recent Updates
-- ✨ Added Monte Carlo race strategy simulation
-- ✨ Implemented Gaussian Process fuel-corrected analysis
-- ✨ Added driver race evolution heatmap
-- 🎨 Improved GUI with modern CustomTkinter interface
-- ⚡ Enhanced performance monitoring and logging
-- 🔄 Added retry logic for network errors
-- 📦 Updated dependencies to latest stable versions
-
----
-
-**Made with ❤️ for F1 fans and data enthusiasts**
