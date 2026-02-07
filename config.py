@@ -65,6 +65,7 @@ class Config:
                 ),
                 "driver_race_evolution_heatmap": PlotFunctionConfig(False, "R"),
                 "monte_carlo_race_strategy": PlotFunctionConfig(False, "R"),
+                "driver_g_g_diagram": PlotFunctionConfig(False, "R"),
                 # SQ
                 "annotated_sprint_qualifying_flying_lap": PlotFunctionConfig(
                     False, "SQ"
