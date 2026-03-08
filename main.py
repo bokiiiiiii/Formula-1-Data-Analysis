@@ -14,7 +14,7 @@ from logger_config import setup_logging, get_logger
 from plot_functions import utils
 from plot_functions import *
 from plot_functions.plot_runner import PlotRunner
-from auto_ig_post import InstagramPoster
+from auto_ig_post import auto_ig_post
 from retry_utils import retry_on_network_error
 from performance_monitor import measure
 
@@ -420,14 +420,13 @@ def post_to_instagram(post_dict: dict, config: Config) -> None:
         return
 
     try:
-        poster = InstagramPoster()
-        delay = config.instagram_delay_seconds
+        delay = getattr(config, "instagram_delay_seconds", 10)
 
         for key, value in post_dict.items():
             if value.get("post") and value.get("success", True):
                 try:
                     logger.info(f"Posting to Instagram: {key}")
-                    poster.post(value["filename"], value["caption"])
+                    auto_ig_post(image_path=value["filename"], caption=value["caption"])
                     logger.info(f"Posted successfully: {key}")
                     time.sleep(delay)
                 except Exception as e:
