@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 from instagrapi import Client
 from dotenv import load_dotenv
 
@@ -24,6 +25,10 @@ def auto_ig_post(image_path: str, caption: str) -> None:
     try:
         cl = Client()
 
+        cl.set_locale("en_GB")
+        cl.set_country("GB")
+        cl.set_timezone_offset(0)
+
         if os.path.exists(SESSION_FILE):
             logger.info("Loading saved session...")
             cl.load_settings(SESSION_FILE)
@@ -31,9 +36,8 @@ def auto_ig_post(image_path: str, caption: str) -> None:
         else:
             logger.info("Logging in for the first time...")
             cl.login(username, password)
-
-        cl.dump_settings(SESSION_FILE)
-        logger.info("Session saved.")
+            cl.dump_settings(SESSION_FILE)
+            logger.info("Session saved.")
 
         logger.info(f"Uploading {image_path}...")
         media = cl.photo_upload(image_path, caption)
@@ -46,8 +50,6 @@ def auto_ig_post(image_path: str, caption: str) -> None:
 
 
 if __name__ == "__main__":
-    import sys
-
     if len(sys.argv) < 3:
         print("Usage: python auto_ig_post.py <image_path> <caption>")
         sys.exit(1)

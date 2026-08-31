@@ -90,7 +90,7 @@ class F1AnalysisApp(ctk.CTk):
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.resizable(False, False)
 
-        self.selected_year = ctk.StringVar(value="2025")
+        self.selected_year = ctk.StringVar(value="2026")
         self.selected_event = ctk.StringVar(value="")
         self.session_vars = {}
         self.instagram_var = ctk.BooleanVar(value=False)
@@ -156,7 +156,7 @@ class F1AnalysisApp(ctk.CTk):
                 width=52,
                 height=28,
                 font=("Segoe UI", 12),
-                fg_color=(COLORS["accent"] if year == "2025" else COLORS["bg_hover"]),
+                fg_color=(COLORS["accent"] if year == "2026" else COLORS["bg_hover"]),
                 hover_color=COLORS["accent_hover"],
                 corner_radius=6,
                 command=lambda y=year: self._on_year_change(y),
