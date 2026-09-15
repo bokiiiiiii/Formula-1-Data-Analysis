@@ -36,6 +36,7 @@ class Config:
 
     # Instagram settings
     instagram_enabled: bool = False
+    instagram_region: str = "UK"
     instagram_delay_seconds: int = 60
 
     # Matplotlib settings

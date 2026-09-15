@@ -61,6 +61,7 @@
     }
   },
   "instagram_enabled": false,
+  "instagram_region": "UK",
   "instagram_delay_seconds": 60,
   "figure_dpi": 125,
   "figure_width": 8.64,

@@ -23,6 +23,16 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
 warnings.filterwarnings("ignore", category=UserWarning, module="fastf1")
 
+
+def get_circuit_info_or_none(session):
+    """Return circuit metadata when FastF1 provides it, otherwise None."""
+    try:
+        return session.get_circuit_info()
+    except Exception as error:
+        logger.warning("Circuit metadata unavailable: %s", error)
+        return None
+
+
 COMPOUND_COLORS = {
     "SOFT": "#FF3333",
     "MEDIUM": "#FFCC00",
@@ -620,8 +630,7 @@ def create_instagram_caption(
     if hashtags:
         base_hashtags = f"{base_hashtags} {hashtags}"
 
-    return textwrap.dedent(
-        f"""\
+    return textwrap.dedent(f"""\
     🏎️
     « {year} {event_name} Grand Prix »
 
@@ -629,8 +638,7 @@ def create_instagram_caption(
 
     {description}
 
-    {base_hashtags}"""
-    )
+    {base_hashtags}""")
 
 
 def get_top_n_finishers(race, n: int = 10) -> list[str]:

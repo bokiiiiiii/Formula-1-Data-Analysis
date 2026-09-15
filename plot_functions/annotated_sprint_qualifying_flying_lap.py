@@ -301,8 +301,14 @@ def annotated_sprint_qualifying_flying_lap(
         )
         laptime_diff_str = f"{laptime_diff % 60:.3f}"
 
-        circuit_info = race.get_circuit_info()
-        plot_corners(ax, circuit_info, v_min, v_max)
+        circuit_info = utils.get_circuit_info_or_none(race)
+        if circuit_info is not None:
+            plot_corners(ax, circuit_info, v_min, v_max)
+        else:
+            logger.warning(
+                "Circuit metadata unavailable for %s; omitting sprint qualifying corner labels.",
+                event_name,
+            )
 
         ax.set_xlabel(
             "Distance (m)", fontsize=14, color="black"

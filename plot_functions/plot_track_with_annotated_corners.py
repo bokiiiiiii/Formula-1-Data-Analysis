@@ -5,6 +5,8 @@ import fastf1.plotting
 import textwrap
 import scienceplots
 import matplotlib
+import pandas as pd
+from types import SimpleNamespace
 
 from fastf1.ergast import Ergast
 from logger_config import get_logger
@@ -264,7 +266,16 @@ def plot_track_with_annotated_corners(
                 "post": False,
             }
 
-        circuit_info_obj = race.get_circuit_info()
+        circuit_info_obj = utils.get_circuit_info_or_none(race)
+        if circuit_info_obj is None:
+            logger.warning(
+                "Circuit metadata unavailable for %s; plotting track without corner labels.",
+                event_name,
+            )
+            circuit_info_obj = SimpleNamespace(
+                rotation=0,
+                corners=pd.DataFrame(columns=["Number", "Letter", "Angle", "X", "Y"]),
+            )
 
     except Exception as e:
         logger.error(f"Error getting lap/position data: {e}")

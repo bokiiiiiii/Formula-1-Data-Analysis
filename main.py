@@ -2,7 +2,6 @@
 
 import os
 import textwrap
-import time
 from pathlib import Path
 from matplotlib import pyplot as plt
 import fastf1
@@ -94,6 +93,7 @@ class F1AnalysisApp(ctk.CTk):
         self.selected_event = ctk.StringVar(value="")
         self.session_vars = {}
         self.instagram_var = ctk.BooleanVar(value=False)
+        self.instagram_region_var = ctk.StringVar(value="UK")
         self.result = None
         self.event_buttons = []
 
@@ -224,6 +224,22 @@ class F1AnalysisApp(ctk.CTk):
         )
         cb_ig.pack(padx=10, pady=4, anchor="w")
 
+        ctk.CTkLabel(
+            parent,
+            text="IG Region",
+            font=("Segoe UI", 12),
+            text_color=COLORS["text_secondary"],
+        ).pack(padx=10, pady=(6, 2), anchor="w")
+        ctk.CTkOptionMenu(
+            parent,
+            values=["Taiwan", "UK"],
+            variable=self.instagram_region_var,
+            font=("Segoe UI", 12),
+            fg_color=COLORS["bg_hover"],
+            button_color=COLORS["accent"],
+            button_hover_color=COLORS["accent_hover"],
+        ).pack(padx=10, pady=(0, 4), anchor="w")
+
         self.status_frame = ctk.CTkFrame(parent, fg_color="transparent")
         self.status_frame.pack(fill="x", padx=10, pady=(10, 8), side="bottom")
 
@@ -311,6 +327,7 @@ class F1AnalysisApp(ctk.CTk):
             "event": self.selected_event.get(),
             "sessions": sessions,
             "instagram_enabled": self.instagram_var.get(),
+            "instagram_region": self.instagram_region_var.get(),
         }
 
         self.withdraw()
@@ -389,15 +406,13 @@ def organize_png_files_name(
                 titles.append(title)
 
         titles_str = "\n• ".join(titles) if titles else "No specific data generated"
-        caption = textwrap.dedent(
-            f"""\
+        caption = textwrap.dedent(f"""\
             🏎️
             « {year} {event_name} Grand Prix »
 
             • {titles_str}
 
-            #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
-        )
+            #F1 #Formula1 #{event_name.replace(" ", "")}GP""")
 
         output_file_path = os.path.join(folder_path, f"{year}_{event_name}_images.txt")
         with open(output_file_path, "w", encoding="utf-8") as f:
@@ -408,29 +423,78 @@ def organize_png_files_name(
         logger.error(f"Failed to organize PNG files: {str(e)}")
 
 
-def post_to_instagram(post_dict: dict, config: Config) -> None:
-    """Post images to Instagram if enabled.
+def create_event_caption(year: int, event_name: str, image_paths: list[str]) -> str:
+    """Create a short Instagram caption with the carousel chart names."""
+    title_prefixes = (
+        f"{year}_",
+        f"{year} ",
+        f"{event_name.replace(' ', '_')}_",
+        f"{event_name.replace(' ', ' ')} ",
+    )
+    chart_names = []
+    for path in image_paths:
+        chart_name = Path(path).stem.replace("_", " ")
+        for prefix in title_prefixes:
+            chart_name = chart_name.replace(prefix, "", 1)
+        chart_name = chart_name.replace("Grand Prix ", "", 1)
+        chart_names.append(chart_name.strip())
+
+    lines = [f"{year} {event_name}"]
+    lines.extend(f"• {name}" for name in chart_names)
+    return "\n".join(lines)
+
+
+def post_to_instagram(all_posts: dict, config: Config, event_name: str) -> None:
+    """Publish every successful chart as one Instagram carousel post.
 
     Args:
-        post_dict: Dictionary with post information
+        all_posts: Results grouped by session
         config: Configuration object
+        event_name: Grand Prix name for the combined caption
     """
     if not config.instagram_enabled:
         logger.info("Instagram posting is disabled")
         return
 
     try:
-        delay = getattr(config, "instagram_delay_seconds", 10)
+        image_paths = []
+        omitted_names = []
+        for posts in all_posts.values():
+            for plot_name, value in posts.items():
+                filename = value.get("filename")
+                if value.get("success", True) and filename:
+                    image_paths.append(filename)
+                elif value.get("success", True):
+                    omitted_names.append(plot_name)
 
-        for key, value in post_dict.items():
-            if value.get("post") and value.get("success", True):
-                try:
-                    logger.info(f"Posting to Instagram: {key}")
-                    auto_ig_post(image_path=value["filename"], caption=value["caption"])
-                    logger.info(f"Posted successfully: {key}")
-                    time.sleep(delay)
-                except Exception as e:
-                    logger.error(f"Failed to post {key}: {str(e)}")
+        # The FP1 circuit map is the cover slide when it was generated.
+        circuit_path = next(
+            (
+                path
+                for path in image_paths
+                if Path(path).stem.lower().endswith("_circuit")
+            ),
+            None,
+        )
+        if circuit_path:
+            image_paths.remove(circuit_path)
+            image_paths.insert(0, circuit_path)
+
+        logger.info("Instagram carousel images (%d): %s", len(image_paths), image_paths)
+        if omitted_names:
+            logger.warning(
+                "Instagram omitted plots without usable files: %s", omitted_names
+            )
+
+        if not image_paths:
+            logger.warning("No successful charts available for Instagram posting")
+            return
+
+        caption = create_event_caption(config.year, event_name, image_paths)
+        auto_ig_post(image_paths, caption, config.instagram_region)
+        logger.info(
+            "Grand Prix carousel posted successfully with %d chart(s)", len(image_paths)
+        )
     except ValueError as e:
         logger.warning(f"Instagram credentials not available: {str(e)}")
     except Exception as e:
@@ -469,11 +533,15 @@ def main():
         config.year = user_config["year"]
         config.enable_all = True
         config.instagram_enabled = user_config["instagram_enabled"]
+        config.instagram_region = user_config["instagram_region"]
 
         event_name = user_config["event"]
 
         all_posts = {}
-        for session in user_config["sessions"]:
+        analysis_sessions = list(user_config["sessions"])
+        logger.info("Sessions selected in GUI: %s", analysis_sessions)
+
+        for session in analysis_sessions:
             config.session_name = session
             logger.info("=" * 60)
             logger.info(f"Starting analysis for Session: {session}")
@@ -484,9 +552,7 @@ def main():
                 all_posts[session] = post_ig_dict
 
         if config.instagram_enabled and all_posts:
-            for session, posts in all_posts.items():
-                logger.info(f"Uploading to Instagram - Session: {session}")
-                post_to_instagram(posts, config)
+            post_to_instagram(all_posts, config, event_name)
 
         organize_png_files_name(event_name, config.year, config.folder_path, config)
 

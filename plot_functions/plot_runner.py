@@ -156,6 +156,7 @@ class PlotRunner:
         logger.info(
             f"Processing {len(enabled_plots)} plot functions for session {session_name}"
         )
+        logger.info("Plots selected for %s: %s", session_name, enabled_plots)
 
         import importlib
 
@@ -210,6 +211,14 @@ class PlotRunner:
 
         logger.info("=" * 60)
         logger.info(f"Completed {len(self.results)} plots")
+        logger.info(
+            "Results for %s: %s",
+            session_name,
+            {
+                name: bool(result.get("filename"))
+                for name, result in self.results.items()
+            },
+        )
         logger.info("=" * 60)
 
         return self.results
