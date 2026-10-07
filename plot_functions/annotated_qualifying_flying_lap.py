@@ -6,7 +6,10 @@ import matplotlib
 import fastf1
 import fastf1.plotting
 import fastf1.utils
+from logger_config import get_logger
 from . import utils
+
+logger = get_logger(__name__)
 
 
 def annotated_qualifying_flying_lap(

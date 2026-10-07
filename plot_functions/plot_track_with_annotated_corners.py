@@ -43,6 +43,8 @@ all_country_name = {
     "Abu Dhabi Grand Prix": "UAE",
 }
 
+CIRCUIT_ID_OVERRIDES = {(2026, "Bahrain Grand Prix"): "sepang"}
+
 
 def find_circuit_index_by_country(country_name_param, allcircuitsinfo_param):
     if not country_name_param:
@@ -66,6 +68,45 @@ def rotate(xy, *, angle_rad):
 def get_circuit_info_by_country_name(year_val, event_name_val):
     ergast = Ergast()
     allcircuitsinfo = ergast.get_circuits(season=year_val, result_type="raw")
+
+    circuit_id_override = CIRCUIT_ID_OVERRIDES.get((year_val, event_name_val))
+    if circuit_id_override:
+        index = next(
+            (
+                idx
+                for idx, circuit in enumerate(allcircuitsinfo)
+                if circuit["circuitId"].lower() == circuit_id_override
+            ),
+            None,
+        )
+        if index is None:
+            allcircuitsinfo = ergast.get_circuits(result_type="raw")
+            index = next(
+                (
+                    idx
+                    for idx, circuit in enumerate(allcircuitsinfo)
+                    if circuit["circuitId"].lower() == circuit_id_override
+                ),
+                None,
+            )
+        if index is None:
+            logger.warning(
+                "Circuit override '%s' not found for %s in %s.",
+                circuit_id_override,
+                event_name_val,
+                year_val,
+            )
+            return None, None, None, None
+
+        circuitsinfo = allcircuitsinfo[index]
+        location_val = circuitsinfo["Location"]
+        return (
+            circuitsinfo["circuitName"],
+            location_val["locality"],
+            location_val["country"],
+            location_val,
+        )
+
     country_name_to_find = all_country_name.get(event_name_val)
 
     if not country_name_to_find:
