@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, Optional, Callable
 from pathlib import Path
-import fastf1
+from openf1_data import HistoricalSession, OpenF1Archive
 from matplotlib import pyplot as plt
 
 from logger_config import get_logger
@@ -29,7 +29,7 @@ class PlotRunner:
             config: Configuration object
         """
         self.config = config
-        self.loaded_sessions: Dict[tuple, fastf1.core.Session] = {}
+        self.loaded_sessions: Dict[tuple, HistoricalSession] = {}
         self.results: Dict[str, Dict[str, Any]] = {}
 
         Path(config.folder_path).mkdir(parents=True, exist_ok=True)
@@ -41,13 +41,13 @@ class PlotRunner:
                 fig_height_inch=config.figure_height,
             )
         )
-        utils.enable_cache(config.cache_path)
+        self.archive = OpenF1Archive(config.cache_path)
         plt.ion()
 
     def get_or_load_session(
         self, year: int, event_name: str, session_type: str
-    ) -> Optional[fastf1.core.Session]:
-        """Get or load a FastF1 session with caching.
+    ) -> Optional[HistoricalSession]:
+        """Get or load a historical session with caching.
 
         Args:
             year: Season year
@@ -55,7 +55,7 @@ class PlotRunner:
             session_type: Session type (FP1, FP2, FP3, Q, SS, S, R)
 
         Returns:
-            FastF1 session object or None if error
+            historical session object or None if error
         """
         session_key = (year, event_name, session_type)
 
@@ -65,8 +65,7 @@ class PlotRunner:
 
         try:
             logger.info(f"Loading session: {event_name} - {session_type}")
-            session = fastf1.get_session(year, event_name, session_type)
-            session.load()
+            session = self.archive.session(year, event_name, session_type)
             self.loaded_sessions[session_key] = session
             return session
         except Exception as e:
@@ -79,7 +78,7 @@ class PlotRunner:
         year: int,
         event_name: str,
         session_name: str,
-        race: fastf1.core.Session,
+        race: HistoricalSession,
         post: bool = False,
         plot_func: Optional[Callable] = None,
     ) -> bool:
@@ -90,7 +89,7 @@ class PlotRunner:
             year: Season year
             event_name: Event name
             session_name: Session display name
-            race: FastF1 session object
+            race: historical session object
             post: Whether to post to Instagram
             plot_func: Plot function to execute
 
@@ -103,20 +102,31 @@ class PlotRunner:
                 return False
 
             logger.info(f"Running: {plot_name}")
-            result = plot_func(year, event_name, session_name, race, post)
+            with utils.plot_directory(self.config.folder_path):
+                result = plot_func(
+                    year,
+                    event_name.removesuffix(" Grand Prix"),
+                    session_name,
+                    race,
+                    post,
+                )
 
             if not isinstance(result, dict):
                 logger.error(f"{plot_name} returned invalid result type")
                 return False
 
+            result["success"] = bool(result.get("filename")) and result.get(
+                "success", True
+            )
             self.results[plot_name] = result
             logger.info(f"Completed: {plot_name}")
-            return True
+            return result["success"]
 
         except Exception as e:
             logger.error(f"Error running {plot_name}: {str(e)}", exc_info=True)
             self.results[plot_name] = {
                 "filename": None,
+                "success": False,
                 "caption": f"Error: {str(e)}",
                 "post": False,
             }
@@ -175,6 +185,16 @@ class PlotRunner:
             except ImportError as e:
                 logger.warning(f"Could not import module {plot_name}: {e}")
 
+        if not enabled_plots:
+            return {}
+        race = self.get_or_load_session(year, event_name, session_name)
+        if race is None:
+            return {
+                name: utils.create_plot_return_dict(
+                    None, "Session unavailable.", False, False
+                )
+                for name in enabled_plots
+            }
         for plot_name in enabled_plots:
             try:
                 if plot_name not in plot_functions_map:
@@ -182,25 +202,11 @@ class PlotRunner:
                     continue
 
                 plot_func = plot_functions_map[plot_name]
-                session_config = self.config.plot_functions.get(plot_name)
-                if session_config is None:
-                    logger.warning(f"No config found for {plot_name}")
-                    continue
-
-                session_type = (
-                    session_config.session if session_config else session_name
-                )
-
-                race = self.get_or_load_session(year, event_name, session_type)
-                if race is None:
-                    logger.warning(f"Skipping {plot_name} (session load failed)")
-                    continue
-
                 self.run_plot(
                     plot_name=plot_name,
                     year=year,
                     event_name=event_name,
-                    session_name=session_type,
+                    session_name=session_name,
                     race=race,
                     post=post,
                     plot_func=plot_func,
@@ -227,3 +233,4 @@ class PlotRunner:
         """Clean up resources."""
         plt.close("all")
         self.loaded_sessions.clear()
+        self.archive.http.close()

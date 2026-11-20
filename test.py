@@ -1,11 +1,10 @@
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
-load_dotenv()
-
-username = os.environ.get("INSTAGRAM_USERNAME")
-password = os.environ.get("INSTAGRAM_PASSWORD")
-
-print(f"Username: {username}")
-print(f"Password: {password}")
+if __name__ == "__main__":
+    load_dotenv(Path(__file__).with_name(".env"))
+    for variable in ("INSTAGRAM_USERNAME", "INSTAGRAM_PASSWORD"):
+        status = "configured" if os.environ.get(variable) else "missing"
+        print(f"{variable}: {status}")

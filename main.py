@@ -3,19 +3,16 @@
 import os
 import textwrap
 from pathlib import Path
-from matplotlib import pyplot as plt
-import fastf1
+from datetime import datetime, timezone
+from openf1_data import ArchiveError, OpenF1Archive
 import customtkinter as ctk
 from tkinter import messagebox
 
 from config import Config, get_config
 from logger_config import setup_logging, get_logger
-from plot_functions import utils
-from plot_functions import *
 from plot_functions.plot_runner import PlotRunner
 from auto_ig_post import auto_ig_post
 from retry_utils import retry_on_network_error
-from performance_monitor import measure
 
 setup_logging()
 logger = get_logger(__name__)
@@ -36,48 +33,16 @@ COLORS = {
 }
 
 
-@retry_on_network_error(max_attempts=3, delay=5.0)
-def get_event_list_from_api(year: int) -> list:
-    """Get event list from FastF1 API with retry logic."""
-    try:
-        logger.info(f"Fetching event list for {year} from FastF1 API...")
-        schedule = fastf1.get_event_schedule(year)
-        event_names = schedule["EventName"].dropna().unique().tolist()
-        logger.info(f"Found {len(event_names)} events")
-        return sorted(event_names)
-    except Exception as e:
-        logger.error(f"API fetch failed: {e}")
-        return [
-            "Bahrain Grand Prix",
-            "Saudi Arabian Grand Prix",
-            "Australian Grand Prix",
-            "Japanese Grand Prix",
-            "Chinese Grand Prix",
-            "Miami Grand Prix",
-            "Monaco Grand Prix",
-            "Canadian Grand Prix",
-            "Spanish Grand Prix",
-            "Austrian Grand Prix",
-            "British Grand Prix",
-            "Hungarian Grand Prix",
-            "Belgian Grand Prix",
-            "Dutch Grand Prix",
-            "Italian Grand Prix",
-            "Singapore Grand Prix",
-            "United States Grand Prix",
-            "Mexico City Grand Prix",
-            "São Paulo Grand Prix",
-            "Las Vegas Grand Prix",
-            "Qatar Grand Prix",
-            "Abu Dhabi Grand Prix",
-        ]
-
-
 class F1AnalysisApp(ctk.CTk):
     """Modern unified F1 Analysis configuration app."""
 
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
+        config = config or get_config("config.json")
+        self.archive = OpenF1Archive(config.cache_path)
+        self.plot_sessions = {plot.session for plot in config.plot_functions.values()}
+        self.calendar = {}
+        self.session_boxes = {}
         self.title("F1 Data Analysis")
         self.configure(fg_color=COLORS["bg_dark"])
 
@@ -89,7 +54,7 @@ class F1AnalysisApp(ctk.CTk):
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.resizable(False, False)
 
-        self.selected_year = ctk.StringVar(value="2026")
+        self.selected_year = ctk.StringVar(value=str(datetime.now(timezone.utc).year))
         self.selected_event = ctk.StringVar(value="")
         self.session_vars = {}
         self.instagram_var = ctk.BooleanVar(value=False)
@@ -149,20 +114,12 @@ class F1AnalysisApp(ctk.CTk):
         year_frame = ctk.CTkFrame(parent, fg_color="transparent")
         year_frame.pack(fill="x", padx=10, pady=(10, 6))
 
-        for year in ["2023", "2024", "2025", "2026"]:
-            btn = ctk.CTkButton(
-                year_frame,
-                text=year,
-                width=52,
-                height=28,
-                font=("Segoe UI", 12),
-                fg_color=(COLORS["accent"] if year == "2026" else COLORS["bg_hover"]),
-                hover_color=COLORS["accent_hover"],
-                corner_radius=6,
-                command=lambda y=year: self._on_year_change(y),
-            )
-            btn.pack(side="left", padx=2)
-            setattr(self, f"year_btn_{year}", btn)
+        ctk.CTkOptionMenu(
+            year_frame,
+            values=[str(year) for year in range(int(self.selected_year.get()), 2022, -1)],
+            variable=self.selected_year,
+            command=self._on_year_change,
+        ).pack(side="left")
 
         self.event_frame = ctk.CTkScrollableFrame(
             parent,
@@ -202,6 +159,8 @@ class F1AnalysisApp(ctk.CTk):
                 checkbox_width=20,
                 checkbox_height=20,
             )
+            self.session_boxes[code] = cb
+            cb.configure(state="disabled")
             cb.pack(padx=10, pady=4, anchor="w")
 
         ctk.CTkFrame(parent, fg_color=COLORS["border"], height=1).pack(
@@ -260,9 +219,16 @@ class F1AnalysisApp(ctk.CTk):
         self.event_buttons.clear()
 
         self.status_label.configure(text="Loading...")
-        self.update()
-
-        events = get_event_list_from_api(year)
+        self.update_idletasks()
+        self.calendar = {}
+        try:
+            self.calendar = self.archive.calendar(year)
+        except (ArchiveError, OSError, ValueError) as exc:
+            logger.error("Historical calendar unavailable: %s", exc)
+            self.status_label.configure(text="Archive unavailable")
+            messagebox.showerror("OpenF1 archive", str(exc))
+            return
+        events = sorted(self.calendar)
 
         for event in events:
             btn = ctk.CTkButton(
@@ -280,24 +246,28 @@ class F1AnalysisApp(ctk.CTk):
             btn.pack(fill="x", pady=1)
             self.event_buttons.append(btn)
 
-        self.status_label.configure(text="")
+        self.status_label.configure(text="" if events else "No completed sessions")
 
     def _on_year_change(self, year: str):
         """Handle year button click."""
         self.selected_year.set(year)
         self.selected_event.set("")
 
-        for y in ["2023", "2024", "2025", "2026"]:
-            btn = getattr(self, f"year_btn_{y}")
-            btn.configure(
-                fg_color=COLORS["accent"] if y == year else COLORS["bg_hover"]
-            )
-
+        for box in self.session_boxes.values():
+            box.configure(state="disabled")
         self._load_events()
 
     def _on_event_select(self, event_name: str):
         """Handle event selection."""
         self.selected_event.set(event_name)
+        available = self.calendar[event_name][1].keys() & self.plot_sessions
+        for code, box in self.session_boxes.items():
+            box.configure(state="normal" if code in available else "disabled")
+            if code not in available:
+                self.session_vars[code].set(False)
+        if available and not any(var.get() for var in self.session_vars.values()):
+            preferred = next(code for code in ("R", "Q", "SQ", "S", "FP3", "FP2", "FP1") if code in available)
+            self.session_vars[preferred].set(True)
 
         for btn in self.event_buttons:
             is_selected = btn.cget("text") == event_name
@@ -353,6 +323,7 @@ def run_config_gui() -> dict:
         logger.error("No configuration selected")
         exit()
 
+    app.archive.http.close()
     app.destroy()
     return result
 
@@ -379,6 +350,7 @@ def organize_png_files_name(
     year: int,
     folder_path: str,
     config: Config,
+    image_paths: list[str] | None = None,
 ) -> None:
     """Organize and create caption file for generated PNG files.
 
@@ -389,26 +361,15 @@ def organize_png_files_name(
         config: Configuration object
     """
     try:
-        png_files = get_png_files(folder_path)
-        titles = []
-
-        event_name_formatted = event_name.replace(" ", "_")
-
-        for png_file in png_files:
-            if f"{year}" in png_file and f"{event_name_formatted}" in png_file:
-                title = (
-                    png_file.replace(f"{year}_", "")
-                    .replace(f"{event_name_formatted}_", "")
-                    .replace("Grand_Prix_", "")
-                    .replace(".png", "")
-                    .replace("_", " ")
-                )
-                titles.append(title)
+        if image_paths is None:
+            prefix = f"{year}_{event_name.removesuffix(' Grand Prix').replace(' ', '_')}_"
+            image_paths = [name for name in get_png_files(folder_path) if name.startswith(prefix)]
+        titles = [chart_title(year, event_name, path) for path in image_paths]
 
         titles_str = "\n• ".join(titles) if titles else "No specific data generated"
         caption = textwrap.dedent(f"""\
             🏎️
-            « {year} {event_name} Grand Prix »
+            « {year} {event_name} »
 
             • {titles_str}
 
@@ -423,22 +384,15 @@ def organize_png_files_name(
         logger.error(f"Failed to organize PNG files: {str(e)}")
 
 
+def chart_title(year: int, event_name: str, path: str) -> str:
+    title = Path(path).stem.replace("_", " ").removeprefix(f"{year} ")
+    title = title.removeprefix(event_name.removesuffix(" Grand Prix") + " ")
+    return title.removeprefix("Grand Prix ").removeprefix("GP ").strip()
+
+
 def create_event_caption(year: int, event_name: str, image_paths: list[str]) -> str:
     """Create a short Instagram caption with the carousel chart names."""
-    title_prefixes = (
-        f"{year}_",
-        f"{year} ",
-        f"{event_name.replace(' ', '_')}_",
-        f"{event_name.replace(' ', ' ')} ",
-    )
-    chart_names = []
-    for path in image_paths:
-        chart_name = Path(path).stem.replace("_", " ")
-        for prefix in title_prefixes:
-            chart_name = chart_name.replace(prefix, "", 1)
-        chart_name = chart_name.replace("Grand Prix ", "", 1)
-        chart_names.append(chart_name.strip())
-
+    chart_names = [chart_title(year, event_name, path) for path in image_paths]
     lines = [f"{year} {event_name}"]
     lines.extend(f"• {name}" for name in chart_names)
     return "\n".join(lines)
@@ -513,11 +467,10 @@ def run_analysis(config: Config, event_name: str) -> dict:
         Dictionary with analysis results
     """
     runner = PlotRunner(config)
-    results = runner.run_all(
-        config.year, event_name, config.session_name, config.instagram_enabled
-    )
-    runner.cleanup()
-    return results
+    try:
+        return runner.run_all(config.year, event_name, config.session_name, config.instagram_enabled)
+    finally:
+        runner.cleanup()
 
 
 def main():
@@ -554,10 +507,12 @@ def main():
         if config.instagram_enabled and all_posts:
             post_to_instagram(all_posts, config, event_name)
 
-        organize_png_files_name(event_name, config.year, config.folder_path, config)
+        images = [item["filename"] for plots in all_posts.values() for item in plots.values()
+                  if item.get("filename") and item.get("success", True)]
+        organize_png_files_name(event_name, config.year, config.folder_path, config, images)
 
         logger.info("=" * 60)
-        logger.info("All analysis completed!")
+        logger.info("Analysis finished with %d chart(s).", len(images))
         logger.info("=" * 60)
 
     except Exception as e:

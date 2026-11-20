@@ -1,11 +1,6 @@
 from matplotlib import pyplot as plt
-import matplotlib.cm as cm
+from matplotlib import colormaps
 import textwrap
-import scienceplots
-import matplotlib
-import fastf1
-import fastf1.plotting
-import fastf1.utils
 from logger_config import get_logger
 from . import utils
 
@@ -95,11 +90,11 @@ def annotated_qualifying_flying_lap(
             )
 
     def plot_delta_time(ax, compared_laps, d_max):
-        delta_time, ref_tel, _ = fastf1.utils.delta_time(
+        delta_time, ref_tel, _ = race.delta_time(
             compared_laps[0], compared_laps[1]
         )
         twin = ax.twinx()
-        cmap = cm.get_cmap("tab20c")
+        cmap = colormaps["tab20c"]
         delta_line_color = cmap(8)
         twin.plot(
             ref_tel["Distance"],
@@ -207,12 +202,9 @@ def annotated_qualifying_flying_lap(
         v_max,
         d_max,
     ):
-        _, _, q3lap = race.laps[
-            race.laps["Driver"] == driver_abbr_param
-        ].split_qualifying_sessions()
-        lap = q3lap.pick_fastest()
+        lap = race.fastest_lap(driver_abbr_param, qualifying=True)
         driver_data["compared_laps"].append(lap)
-        car_data = lap.get_car_data().add_distance()
+        car_data = race.car_data(lap)
 
         lap_time = lap["LapTime"]
         lap_time_str = get_lap_time_str(lap_time)
@@ -252,10 +244,6 @@ def annotated_qualifying_flying_lap(
 
         return v_min, v_max, d_max
 
-    # Note: Using mpl_timedelta_support=True for this plot (special requirement)
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
-    )
 
     # Plotting constants for consistent sizing
     DPI = utils.DEFAULT_DPI
@@ -263,9 +251,11 @@ def annotated_qualifying_flying_lap(
 
     # Session data is already loaded by plot_runner
     quali_results = race.results
-    front_row = quali_results[:2]
+    front_row = quali_results.iloc[:2]
+    if len(front_row) < 2:
+        return utils.create_plot_return_dict(None, "Two classified drivers are required.", post, False)
 
-    with plt.style.context(["science", "bright"]):
+    with plt.style.context(["science", "bright", "no-latex"]):
         # Attempt to override scienceplots' potential dimension-altering rcParams
         plt.rcParams["figure.dpi"] = DPI
         plt.rcParams["savefig.dpi"] = DPI
@@ -312,7 +302,7 @@ def annotated_qualifying_flying_lap(
         )
         laptime_diff_str = f"{laptime_diff % 60:.3f}"
 
-        circuit_info = utils.get_circuit_info_or_none(race)
+        circuit_info = race.circuit
         if circuit_info is not None:
             plot_corners(ax, circuit_info, v_min, v_max)
         else:
@@ -353,7 +343,7 @@ def annotated_qualifying_flying_lap(
         st = plt.suptitle(suptitle_text, fontsize=18)
         st.set_color("black")
 
-        subtitle_text = "with Track Corners Annotated"
+        subtitle_text = "with Track Corners Annotated" if circuit_info is not None else "Speed by Distance"
         subtitle_lower_text = (
             f"{driver_data['abbreviations'][0]} vs {driver_data['abbreviations'][1]}"
         )
@@ -369,7 +359,7 @@ def annotated_qualifying_flying_lap(
             0.5, 0.915, subtitle_lower_text, ha="center", fontsize=13, color="black"
         )
 
-        filename = f"../pic/{suptitle_text.replace(' ', '_')}.png"
+        filename = utils.plot_path(suptitle_text)
         save_plot(fig, filename)
         plt.close(fig)
 

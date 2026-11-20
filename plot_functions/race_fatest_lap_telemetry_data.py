@@ -1,15 +1,9 @@
 from matplotlib import pyplot as plt
-import matplotlib.cm as cm
+from matplotlib import colormaps
 import textwrap
-import fastf1
-import fastf1.plotting
-import fastf1.utils
-from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 import pandas as pd
 import numpy as np
-import scienceplots
-import matplotlib
 from . import utils
 
 suptitle_text_global = ""
@@ -22,9 +16,6 @@ def race_fatest_lap_telemetry_data(
     """Plot the telemetry data of the race fastest laps with styled appearance."""
     global suptitle_text_global, subtitle_lower_text_global
 
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
-    )
 
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
@@ -104,9 +95,7 @@ def race_fatest_lap_telemetry_data(
         )
 
     def save_plot_final(fig_param, suptitle_text_param, dpi_val):
-        filename = (
-            f"../pic/{suptitle_text_param.replace(' ', '_').replace(':', '')}.png"
-        )
+        filename = utils.plot_path(suptitle_text_param)
         fig_param.savefig(filename, dpi=dpi_val, bbox_inches=None)
         return filename
 
@@ -140,7 +129,7 @@ def race_fatest_lap_telemetry_data(
 #F1 #Formula1 #{event_name.replace(" ", "")}GP"""
         )
 
-    with plt.style.context(["science", "bright"]):
+    with plt.style.context(["science", "bright", "no-latex"]):
         plt.rcParams["figure.dpi"] = DPI
         plt.rcParams["savefig.dpi"] = DPI
         plt.rcParams["figure.autolayout"] = False
@@ -173,7 +162,7 @@ def race_fatest_lap_telemetry_data(
         processed_driver_count = 0
         for i, driver_abbr_val in enumerate(front_row_drivers_abbr):
             try:
-                lap_obj = race.laps.pick_driver(driver_abbr_val).pick_fastest()
+                lap_obj = race.fastest_lap(driver_abbr_val)
                 if lap_obj is None or pd.isna(lap_obj.LapTime):
                     print(
                         f"No valid fastest lap for {driver_abbr_val}. Skipping this driver."
@@ -186,7 +175,7 @@ def race_fatest_lap_telemetry_data(
                 continue
 
             driver_data_dict["compared_laps_objects"].append(lap_obj)
-            car_data_df = lap_obj.get_car_data().add_distance()
+            car_data_df = race.car_data(lap_obj)
 
             # If car_data is empty, skip this driver
             if car_data_df.empty:
@@ -240,8 +229,8 @@ def race_fatest_lap_telemetry_data(
 
             # Acceleration
             car_data_df.loc[:, "Acceleration"] = gaussian_filter1d(
-                car_data_df["Speed"].diff().fillna(0)
-                / car_data_df["Time"].dt.total_seconds().diff().fillna(method="bfill"),
+                (car_data_df["Speed"] / 3.6).diff().fillna(0)
+                / car_data_df["Time"].dt.total_seconds().diff().bfill(),
                 sigma=2,
             )
             axes[3].plot(
@@ -287,20 +276,18 @@ def race_fatest_lap_telemetry_data(
 
         # Speed difference plot (ax0_right)
         car_data1_df = (
-            driver_data_dict["compared_laps_objects"][0].get_car_data().add_distance()
+            race.car_data(driver_data_dict["compared_laps_objects"][0])
         )
         car_data2_df = (
-            driver_data_dict["compared_laps_objects"][1].get_car_data().add_distance()
+            race.car_data(driver_data_dict["compared_laps_objects"][1])
         )
 
-        interp_speed2_func = interp1d(
-            car_data2_df["Distance"],
+        # Match start and finish even when the integrated distance differs slightly.
+        aligned_speed2_vals = np.interp(
+            car_data1_df["Distance"] / car_data1_df["Distance"].iloc[-1],
+            car_data2_df["Distance"] / car_data2_df["Distance"].iloc[-1],
             car_data2_df["Speed"],
-            kind="linear",
-            bounds_error=False,
-            fill_value="extrapolate",
         )
-        aligned_speed2_vals = interp_speed2_func(car_data1_df["Distance"])
         speed_difference_vals = car_data1_df["Speed"] - aligned_speed2_vals
         max_abs_diff = (
             np.nanmax(np.abs(speed_difference_vals))
@@ -365,11 +352,11 @@ def race_fatest_lap_telemetry_data(
         plt.setp(axes[0].get_legend().get_texts(), color="black")
 
         # Delta time plot (axes[4]) - similar to annotated_qualifying_flying_lap
-        delta_time_vals, ref_tel_df, _ = fastf1.utils.delta_time(
+        delta_time_vals, ref_tel_df, _ = race.delta_time(
             driver_data_dict["compared_laps_objects"][0],
             driver_data_dict["compared_laps_objects"][1],
         )
-        delta_line_color_val = cm.get_cmap("PiYG")(
+        delta_line_color_val = colormaps["PiYG"](
             0.9 if delta_time_vals.mean() > 0 else 0.1
         )  # Color based on who is faster on avg
         axes[4].plot(

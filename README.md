@@ -1,11 +1,11 @@
 # Formula 1 Data Analysis
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![FastF1](https://img.shields.io/badge/FastF1-3.5%2B-red.svg)](https://github.com/theOehrly/Fast-F1)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![OpenF1](https://img.shields.io/badge/Data-OpenF1-red.svg)](https://openf1.org/docs/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## Project Description
-A comprehensive Formula 1 data analysis and visualization tool that automatically downloads telemetry data, generates insightful analytical plots, and optionally posts them to Instagram. This project leverages the FastF1 API to provide in-depth analysis of F1 races, qualifying sessions, and practice sessions.
+A comprehensive Formula 1 data analysis and visualization tool that automatically downloads telemetry data, generates insightful analytical plots, and optionally posts them to Instagram. The app uses the public OpenF1 archive for completed sessions from 2023 onwards. Race data downloads require no account, subscription or API key.
 
 *Project Start Date: January 2024*
 
@@ -20,9 +20,9 @@ A comprehensive Formula 1 data analysis and visualization tool that automaticall
 - Real-time progress tracking and logging
 
 ### 📊 Comprehensive Data Analysis
-- **Event Selection**: Interactive GUI for selecting specific Grand Prix events from any F1 season
-- **Data Acquisition**: Automatic download of telemetry data, lap times, and session information via FastF1 API
-- **Advanced Caching**: Built-in FastF1 cache management for faster subsequent loads
+- **Event Selection**: Interactive GUI for selecting specific Grand Prix events from the 2023 season onwards
+- **Data Acquisition**: Automatic download of telemetry data, lap times, and session information from OpenF1
+- **Advanced Caching**: Compressed local cache for historical race data and per-driver telemetry
 - **Retry Logic**: Network error handling with automatic retry mechanism
 
 ### 📈 Visualization Features
@@ -61,7 +61,7 @@ The project generates a wide variety of analytical plots:
 ## Installation
 
 ### Prerequisites
-- Python 3.8 or higher
+- Python 3.10 or higher
 - pip package manager
 - Git (for cloning the repository)
 
@@ -90,14 +90,14 @@ The project generates a wide variety of analytical plots:
    ```
 
 4. **Configure Instagram (Optional)**
-   - If you want to use the auto-posting feature, create a `config.json` file
-   - Add your Instagram credentials (refer to `config.py` for structure)
-
-5. **Run FastF1 Cache Setup**
-   ```bash
-   # The first run will create a cache directory for faster subsequent loads
-   python main.py
-   ```
+   - Install Playwright's Chromium browser in the activated virtual environment:
+     ```bash
+     python -m playwright install chromium
+     ```
+   - Run this command again after upgrading Playwright if it reports a missing browser executable.
+   - Copy `.env.example` to `.env` next to `main.py` and fill in `INSTAGRAM_USERNAME` and `INSTAGRAM_PASSWORD`. You can also set these as environment variables.
+   - For accounts using authenticator-based two-factor authentication, set `INSTAGRAM_2FA_SEED` to the authenticator setup key (not a temporary six-digit code).
+   - Credentials are read from `.env`; `config.json` holds analysis settings. An existing authenticated `ig_session.json` can be reused without entering credentials until Instagram requests login again.
 
 ## Usage
 
@@ -109,9 +109,9 @@ The project generates a wide variety of analytical plots:
    ```
 
 2. **Select Your Event**
-   - A GUI window will appear showing available F1 events
+   - Choose a season to see events with completed sessions
    - Choose the Grand Prix you want to analyze
-   - Click "Start Analysis" to begin
+   - Select one or more completed sessions that have configured charts, then click "START"
 
 3. **View Results**
    - Plots will be automatically generated and saved
@@ -119,32 +119,17 @@ The project generates a wide variety of analytical plots:
 
 ### Configuration Options
 
-The project uses a flexible configuration system. Key settings in [main.py](main.py):
+The GUI controls the season, event, session and optional Instagram posting. The app creates `config.json` on first use. Set `folder_path` for generated PNGs and captions, and `cache_path` for downloaded data. OpenF1 responses are stored under `<cache_path>/openf1/`. The current season's schedule refreshes every five minutes.
 
-#### Basic Settings
-```python
-YEAR = 2024                    # F1 season year
-SESSION_NAME = "Q"             # Session(s): "FP1", "FP2", "FP3", "Q", "S", "R", or "FP1+Q+R"
-FOLDER_PATH = "../Pic"         # Output directory for plots
-```
+Each entry in `plot_functions` assigns a chart to a session code. The archive supports `FP1`, `FP2`, `FP3`, `Q` (qualifying), `SQ` (sprint qualifying), `S` (sprint) and `R` (race). The default chart assignments use FP1, Q, SQ and R.
 
-#### Plot Function Control
-```python
-ENABLE_ALL = True              # Enable all plotting functions
-FUNC_PARAMS = {
-    "plot_annotated_qualifying_flying_lap": {"enable": True, "session": "Q"},
-    "plot_annotated_race_fastest_lap": {"enable": True, "session": "R"},
-    "plot_team_pace_ranking": {"enable": True, "session": "Q"},
-    # ... more plot functions
-}
-```
+### Historical telemetry
 
-### Available Sessions
-- `FP1`, `FP2`, `FP3` - Free Practice sessions
-- `Q` - Qualifying
-- `S` - Sprint Qualifying
-- `R` - Race
-- Combined: `FP1+Q+R` (processes multiple sessions)
+Lap times and qualifying classification come from OpenF1. The charts integrate speed over time to estimate distance, and align car and position samples by UTC timestamp. Final qualifying comparisons use the classified Q3 or SQ3 time. Circuit outlines use OpenF1 position samples. Corner numbers use the optional MultiViewer circuit metadata referenced by OpenF1. Charts omit those labels when the metadata is unavailable. [OpenF1 data reference](https://openf1.org/docs/)
+
+### Tests
+
+Run `python -m unittest discover -s tests -v` for the offline regression suite. The existing Instagram tests use local Playwright fixtures and require the Chromium installation above. To also render and verify all 13 charts using real archived sessions, set `OPENF1_TEST_CACHE` to a writable cache directory before running the suite.
 
 ## Project Structure
 ```
@@ -185,7 +170,7 @@ Formula-1-Data-Analysis/
 ## Dependencies
 
 ### Core Libraries
-- **FastF1** (≥3.5): F1 data acquisition and analysis
+- **Requests** for OpenF1 history and optional circuit metadata
 - **Matplotlib** (≥3.8): Plotting and visualization
 - **Pandas** (≥2.0): Data manipulation
 - **NumPy** (≥2.0): Numerical computing

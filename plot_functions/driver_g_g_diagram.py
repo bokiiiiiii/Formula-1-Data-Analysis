@@ -10,11 +10,9 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
-import scienceplots
-import fastf1
-import fastf1.plotting
 from scipy.signal import savgol_filter
 
+from openf1_data import MissingTelemetry, quick_laps
 from . import utils
 
 logger = logging.getLogger(__name__)
@@ -84,28 +82,25 @@ def _g_forces_single_lap(telemetry: pd.DataFrame):
 
 def _collect_driver_g(race, abbr: str):
     """Aggregate G-data over all quick laps for a driver."""
-    try:
-        laps = race.laps.pick_driver(abbr).pick_quicklaps(QUICKLAP_THR)
-    except Exception:
-        laps = race.laps.pick_driver(abbr)
+    laps = quick_laps(race.driver_laps(abbr), QUICKLAP_THR)
     if laps.empty:
-        laps = race.laps.pick_driver(abbr)
+        laps = race.driver_laps(abbr)
 
     arrays = {"long": [], "lat": [], "spd": []}
-    for _, lap in laps.iterlaps():
+    for _, lap in laps.iterrows():
         try:
-            tel = lap.get_telemetry()
+            tel = race.telemetry(lap)
             if tel is None or tel.empty:
                 continue
             if not {"X", "Y", "Speed", "Time"}.issubset(tel.columns):
                 continue
             res = _g_forces_single_lap(tel)
-            if res is None:
+            if res is None or not len(res[0]):
                 continue
             arrays["long"].append(res[0])
             arrays["lat"].append(res[1])
             arrays["spd"].append(res[2])
-        except Exception:
+        except MissingTelemetry:
             continue
 
     if not arrays["long"]:
@@ -122,7 +117,6 @@ def driver_g_g_diagram(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
     """Create a G-G diagram with both top 2 finishers overlaid on one plot."""
-    utils.setup_fastf1_plotting()
 
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
@@ -188,8 +182,8 @@ def driver_g_g_diagram(
         driver_labels = {}
         for abbr in drivers:
             try:
-                team = race.laps.pick_driver(abbr)["Team"].iloc[0]
-                team_color = fastf1.plotting.get_team_color(team, race)
+                team = race.driver_laps(abbr)["Team"].iloc[0]
+                team_color = race.team_color(team)
             except Exception:
                 team = ""
                 team_color = "black"
@@ -318,9 +312,7 @@ def driver_g_g_diagram(
         fig.text(0.5, 0.935, subtitle, ha="center", fontsize=14, color="black")
 
         suptitle_for_filename = f"{year} {event_name} Grand Prix G-G Diagram"
-        filename = (
-            f"../pic/{suptitle_for_filename.replace(' ', '_').replace(':', '')}.png"
-        )
+        filename = utils.plot_path(suptitle_for_filename)
         fig.savefig(filename, dpi=DPI, bbox_inches=None)
         plt.close(fig)
 

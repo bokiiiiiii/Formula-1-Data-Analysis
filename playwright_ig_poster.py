@@ -13,7 +13,8 @@ from typing import Sequence
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
-load_dotenv(override=True)
+ENV_FILE = Path(__file__).resolve().with_name(".env")
+load_dotenv(dotenv_path=ENV_FILE)
 logger = logging.getLogger(__name__)
 
 SESSION_FILE = "ig_session.json"
@@ -121,9 +122,21 @@ def ensure_authenticated_session(page, context) -> None:
     # 2. If password prompt or login page
     pw_input = page.locator('input[type="password"]')
     if pw_input.count() > 0 and pw_input.first.is_visible():
-        logger.info("Entering Instagram password...")
         user_input = page.locator('input[name="email"], input[name="username"]')
-        if user_input.count() > 0 and user_input.first.is_visible():
+        needs_username = user_input.count() > 0 and user_input.first.is_visible()
+        missing = []
+        if needs_username and not username:
+            missing.append("INSTAGRAM_USERNAME")
+        if not password:
+            missing.append("INSTAGRAM_PASSWORD")
+        if missing:
+            raise ValueError(
+                "Instagram login requires " + ", ".join(missing) + ". "
+                f"Copy .env.example to {ENV_FILE} and fill in your credentials, "
+                "or set these environment variables before running the app."
+            )
+        logger.info("Entering Instagram password...")
+        if needs_username:
             user_input.first.fill(username)
         pw_input.first.fill(password)
         login_btn = page.locator(
@@ -138,25 +151,20 @@ def ensure_authenticated_session(page, context) -> None:
         or "two_factor" in page.url
         or page.locator('input[name="verificationCode"]').count() > 0
         or page.locator('input[name="approvals_code"]').count() > 0
+        or page.locator('input[autocomplete="one-time-code"]').count() > 0
     ):
         logger.info("2FA required, generating TOTP code...")
-        code = generate_totp(seed) if seed else ""
-        if code:
-            code_input = page.locator(
-                'input[name="verificationCode"], input[name="approvals_code"], input[type="tel"], input[type="text"]'
-            ).first
-            code_input.fill(code)
-            code_input.press("Enter")
-            page.wait_for_timeout(6000)
-    elif (
-        page.locator('input[type="text"]').count() > 0 and "accounts/login" in page.url
-    ):
-        # Check if 2FA code input rendered without two_factor in URL
-        code = generate_totp(seed) if seed else ""
-        if code:
-            page.locator('input[type="text"]').first.fill(code)
-            page.locator('input[type="text"]').first.press("Enter")
-            page.wait_for_timeout(6000)
+        if not seed:
+            raise ValueError(
+                "Instagram requested two-factor authentication. "
+                f"Set INSTAGRAM_2FA_SEED in {ENV_FILE} to your authenticator setup key."
+            )
+        code_input = page.locator(
+            'input[name="verificationCode"], input[name="approvals_code"], input[autocomplete="one-time-code"], input[type="tel"], input[type="text"]'
+        ).first
+        code_input.fill(generate_totp(seed))
+        code_input.press("Enter")
+        page.wait_for_timeout(6000)
 
     # 4. Dismiss popups
     for _ in range(2):
@@ -179,9 +187,27 @@ def ensure_authenticated_session(page, context) -> None:
             except Exception:
                 pass
 
-    # Save fresh session cookies
+    # Keep the saved session intact if login failed or needs manual verification.
+    if (
+        "accounts/login" in page.url
+        or "two_step_verification" in page.url
+        or "two_factor" in page.url
+        or "challenge" in page.url
+        or (pw_input.count() > 0 and pw_input.first.is_visible())
+    ):
+        raise RuntimeError(
+            "Instagram login was not completed. Check your credentials and "
+            "complete any account verification on Instagram before retrying."
+        )
+
+    # Save fresh session cookies only after an authenticated session is present.
     fresh = context.cookies()
     cookie_dict = {c["name"]: c["value"] for c in fresh}
+    if not cookie_dict.get("sessionid"):
+        raise RuntimeError(
+            "Instagram did not provide an authenticated session cookie. "
+            "Check your login credentials and account verification."
+        )
     session_data = {
         "authorization_data": {
             "sessionid": cookie_dict.get("sessionid", ""),

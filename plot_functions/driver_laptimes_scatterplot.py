@@ -6,13 +6,9 @@ from sklearn.linear_model import LinearRegression
 import pandas as pd
 import textwrap
 import numpy as np
-import scienceplots
-import matplotlib
-import fastf1
-import fastf1.plotting
 
 from . import utils
-from .utils import COMPOUND_COLORS, get_compound_color
+from .utils import COMPOUND_COLORS
 from logger_config import get_logger
 
 # Logger
@@ -29,7 +25,7 @@ def get_podium_finishers_abbr(race, logger_obj=None):
     """Get the top 2 finishers' abbreviations.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         logger_obj: Logger instance
 
     Returns:
@@ -423,7 +419,7 @@ def driver_laptimes_scatterplot(
         year: Season year
         event_name: Grand Prix name
         session_name: Session type
-        race: FastF1 session object
+        race: historical session
         post: Whether to post to Instagram
 
     Returns:
@@ -431,9 +427,6 @@ def driver_laptimes_scatterplot(
     """
     try:
         utils.setup_matplotlib_style(PLOT_CONFIG)
-        utils.load_race_data(
-            race, telemetry=False, laps=True, weather=False, logger_obj=logger
-        )
 
         podium_finishers_abbrs = get_podium_finishers_abbr(race, logger_obj=logger)
         if not podium_finishers_abbrs:
@@ -500,7 +493,7 @@ def driver_laptimes_scatterplot(
 
         stored_data = initialize_driver_data_storage()
 
-        with plt.style.context(["science", "bright"]):
+        with plt.style.context(["science", "bright", "no-latex"]):
             utils.setup_matplotlib_style(PLOT_CONFIG)
             fig, ax = utils.create_figure_and_axis(PLOT_CONFIG)
 

@@ -1,59 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import fastf1
-import fastf1.plotting
 import textwrap
-import scienceplots
-import matplotlib
 import pandas as pd
 from types import SimpleNamespace
 
-from fastf1.ergast import Ergast
 from logger_config import get_logger
 from . import utils
 
 logger = get_logger(__name__)
 
 suptitle_text_global = ""
-
-all_country_name = {
-    "Bahrain Grand Prix": "Bahrain",
-    "Saudi Arabian Grand Prix": "Saudi Arabia",
-    "Australian Grand Prix": "Australia",
-    "Japanese Grand Prix": "Japan",
-    "Chinese Grand Prix": "China",
-    "Miami Grand Prix": "USA",
-    "Emilia Romagna Grand Prix": "Italy",
-    "Monaco Grand Prix": "Monaco",
-    "Canadian Grand Prix": "Canada",
-    "Spanish Grand Prix": "Spain",
-    "Austrian Grand Prix": "Austria",
-    "British Grand Prix": "UK",
-    "Hungarian Grand Prix": "Hungary",
-    "Belgian Grand Prix": "Belgium",
-    "Dutch Grand Prix": "Netherlands",
-    "Italian Grand Prix": "Italy",
-    "Azerbaijan Grand Prix": "Azerbaijan",
-    "Singapore Grand Prix": "Singapore",
-    "United States Grand Prix": "USA",
-    "Mexico City Grand Prix": "Mexico",
-    "São Paulo Grand Prix": "Brazil",
-    "Las Vegas Grand Prix": "USA",
-    "Qatar Grand Prix": "Qatar",
-    "Abu Dhabi Grand Prix": "UAE",
-}
-
-CIRCUIT_ID_OVERRIDES = {(2026, "Bahrain Grand Prix"): "sepang"}
-
-
-def find_circuit_index_by_country(country_name_param, allcircuitsinfo_param):
-    if not country_name_param:
-        return None
-    for index, circuit in enumerate(allcircuitsinfo_param):
-        if circuit["Location"]["country"] == country_name_param:
-            return index
-    return None
-
 
 def rotate(xy, *, angle_rad):
     rot_mat = np.array(
@@ -63,87 +19,6 @@ def rotate(xy, *, angle_rad):
         ]
     )
     return np.matmul(xy, rot_mat)
-
-
-def get_circuit_info_by_country_name(year_val, event_name_val):
-    ergast = Ergast()
-    allcircuitsinfo = ergast.get_circuits(season=year_val, result_type="raw")
-
-    circuit_id_override = CIRCUIT_ID_OVERRIDES.get((year_val, event_name_val))
-    if circuit_id_override:
-        index = next(
-            (
-                idx
-                for idx, circuit in enumerate(allcircuitsinfo)
-                if circuit["circuitId"].lower() == circuit_id_override
-            ),
-            None,
-        )
-        if index is None:
-            allcircuitsinfo = ergast.get_circuits(result_type="raw")
-            index = next(
-                (
-                    idx
-                    for idx, circuit in enumerate(allcircuitsinfo)
-                    if circuit["circuitId"].lower() == circuit_id_override
-                ),
-                None,
-            )
-        if index is None:
-            logger.warning(
-                "Circuit override '%s' not found for %s in %s.",
-                circuit_id_override,
-                event_name_val,
-                year_val,
-            )
-            return None, None, None, None
-
-        circuitsinfo = allcircuitsinfo[index]
-        location_val = circuitsinfo["Location"]
-        return (
-            circuitsinfo["circuitName"],
-            location_val["locality"],
-            location_val["country"],
-            location_val,
-        )
-
-    country_name_to_find = all_country_name.get(event_name_val)
-
-    if not country_name_to_find:
-        logger.warning(
-            f"Country name for event '{event_name_val}' not found in mapping. Trying fallback lookup..."
-        )
-        for circuit_data in allcircuitsinfo:
-            if circuit_data["Location"]["locality"].lower() == event_name_val.lower():
-                country_name_to_find = circuit_data["Location"]["country"]
-                logger.info(
-                    f"Found country '{country_name_to_find}' by locality for event '{event_name_val}'."
-                )
-                break
-        if not country_name_to_find:
-            logger.warning(
-                f"Could not find country mapping for '{event_name_val}'. Circuit data unavailable."
-            )
-            return None, None, None, None
-
-    index = find_circuit_index_by_country(country_name_to_find, allcircuitsinfo)
-    if index is None:
-        for idx, circuit in enumerate(allcircuitsinfo):
-            if circuit["circuitId"].lower() == event_name_val.lower().replace(" ", "_"):
-                index = idx
-                break
-        if index is None:
-            logger.warning(
-                f"Circuit info not found for {event_name_val} in year {year_val}. Data may not be available yet."
-            )
-            return None, None, None, None
-
-    circuitsinfo = allcircuitsinfo[index]
-    circuit_name_val = circuitsinfo["circuitName"]
-    location_val = circuitsinfo["Location"]
-    locality_val = location_val["locality"]
-    country_val = location_val["country"]
-    return circuit_name_val, locality_val, country_val, location_val
 
 
 def plot_track_styled(ax_param, track_pos, circuit_info_obj):
@@ -161,7 +36,7 @@ def plot_track_styled(ax_param, track_pos, circuit_info_obj):
 
 
 def annotate_corners_styled(ax_param, circuit_info_obj, track_angle_rad_param):
-    OFFSET_VECTOR = np.array([250, 0])
+    OFFSET_VECTOR = np.array([25, 0])
     CORNER_ANNOTATION_COLOR = "dimgray"
     CORNER_TEXT_COLOR = "white"
     ANNOTATION_LINESTYLE = "--"
@@ -232,7 +107,7 @@ def add_scale_styled(ax_param):
 
 
 def save_plot_and_get_filename(fig_param, suptitle_text_param, dpi_val):
-    filename = f"../pic/{suptitle_text_param.replace(' ', '_').replace(':', '')}.png"
+    filename = utils.plot_path(suptitle_text_param)
     fig_param.savefig(filename, dpi=dpi_val, bbox_inches=None)
     return filename
 
@@ -247,7 +122,7 @@ def generate_styled_caption(
 
     • Circuit Layout: {circuit_name_val}
     • Location: {locality_val}, {country_val}
-    • Track corners annotated.
+    • Track outline from OpenF1 position samples.
 
     #F1 #Formula1 #{event_name_val.replace(" ", "")}GP #{circuit_name_val.replace(" ","")}"""
     )
@@ -269,24 +144,13 @@ def plot_track_with_annotated_corners(
     SUPTITLE_Y = 0.93
     SUBTITLE_Y = 0.89
 
-    utils.load_session_data(race)
 
-    circuit_name, locality, country, _ = get_circuit_info_by_country_name(
-        year, event_name
-    )
-
-    if circuit_name is None:
-        logger.warning(
-            f"Could not retrieve circuit information for {year} {event_name}. Skipping track plot. This is normal for upcoming races or incomplete season data."
-        )
-        return {
-            "filename": None,
-            "caption": "Circuit information not found.",
-            "post": False,
-        }
+    circuit_name = race.meeting["circuit_short_name"]
+    locality = race.meeting["location"]
+    country = race.meeting["country_name"]
 
     try:
-        lap_for_track = race.laps.pick_fastest()
+        lap_for_track = race.fastest_lap()
         if lap_for_track is None or lap_for_track.empty:
             logger.warning(
                 f"No fastest lap data available for {year} {event_name} {session_name}."
@@ -296,7 +160,7 @@ def plot_track_with_annotated_corners(
                 "caption": "No lap data for track plotting.",
                 "post": False,
             }
-        pos_data = lap_for_track.get_pos_data()
+        pos_data = race.position_data(lap_for_track)
         if pos_data.empty:
             logger.warning(
                 f"No telemetry position data for fastest lap in {year} {event_name} {session_name}."
@@ -307,7 +171,7 @@ def plot_track_with_annotated_corners(
                 "post": False,
             }
 
-        circuit_info_obj = utils.get_circuit_info_or_none(race)
+        circuit_info_obj = race.circuit
         if circuit_info_obj is None:
             logger.warning(
                 "Circuit metadata unavailable for %s; plotting track without corner labels.",

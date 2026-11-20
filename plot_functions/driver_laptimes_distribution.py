@@ -4,51 +4,28 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from scipy.interpolate import make_interp_spline
 import pandas as pd
-import fastf1
-import fastf1.plotting
 import textwrap
-import scienceplots
-import matplotlib
+from openf1_data import HistoricalSession, quick_laps
 from . import utils
-from .utils import get_point_finishers_abbr, get_compound_color, COMPOUND_COLORS
+from .utils import get_point_finishers_abbr, COMPOUND_COLORS
 
 QUICKLAP_THRESHOLD = 1.05
 BANDWIDTH = 0.17
 B_SPLINE_DEG = 1
 
 
-def load_race_data(race: fastf1.core.Session):
-    # Session data should already be loaded by plot_runner
-    # This is a no-op now, kept for compatibility
-    pass
-
-
 def get_driver_laps_for_distribution(
-    race: fastf1.core.Session,
+    race: HistoricalSession,
     driver_abbr_list: list[str],
     pick_quicklaps_threshold: float | None = None,
 ) -> pd.DataFrame:
     if not driver_abbr_list:
         return pd.DataFrame()
 
-    all_drivers_info = {
-        d_info["Abbreviation"]: d_info["DriverNumber"]
-        for dn in race.drivers
-        if (d_info := race.get_driver(dn)) is not None
-    }
-
-    driver_numbers_to_pick = [
-        all_drivers_info[abbr] for abbr in driver_abbr_list if abbr in all_drivers_info
-    ]
-
-    if not driver_numbers_to_pick:
-        print(f"No valid driver numbers found for abbreviations: {driver_abbr_list}")
-        return pd.DataFrame()
-
-    laps = race.laps.pick_drivers(driver_numbers_to_pick)
+    laps = race.driver_laps(driver_abbr_list)
 
     if pick_quicklaps_threshold is not None:
-        laps = laps.pick_quicklaps(pick_quicklaps_threshold)
+        laps = quick_laps(laps, pick_quicklaps_threshold)
         laps = laps.dropna(subset=["Compound", "LapTime"])
     else:
         laps = laps.copy()
@@ -59,26 +36,11 @@ def get_driver_laps_for_distribution(
 
     laps["LapTime(s)"] = laps["LapTime"].dt.total_seconds()
 
-    if "DriverNumber" in laps.columns and laps["DriverNumber"].notna().any():
-        abbr_map = {num: abbr for abbr, num in all_drivers_info.items()}
-        laps["Driver"] = laps["DriverNumber"].map(abbr_map)
-    elif (
-        "Driver" in laps.columns
-        and not laps["Driver"].isin(all_drivers_info.keys()).all()
-    ):
-        try:
-            numeric_drivers = pd.to_numeric(laps["Driver"], errors="coerce")
-            if numeric_drivers.notna().any():
-                abbr_map = {num: abbr for abbr, num in all_drivers_info.items()}
-                laps["Driver"] = numeric_drivers.map(abbr_map)
-        except Exception:
-            pass
-
     return laps.dropna(subset=["Driver"])
 
 
 def get_driver_statistics_laps(
-    race: fastf1.core.Session, point_finishers_abbr_list: list[str]
+    race: HistoricalSession, point_finishers_abbr_list: list[str]
 ) -> pd.DataFrame:
     """Get all laps (not just quick laps) for statistics calculation."""
     return get_driver_laps_for_distribution(
@@ -87,14 +49,14 @@ def get_driver_statistics_laps(
 
 
 def get_driver_color_palette(
-    race: fastf1.core.Session, driver_abbr_list: list[str]
+    race: HistoricalSession, driver_abbr_list: list[str]
 ) -> dict:
     palette = {}
     default_colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     for i, abbr in enumerate(driver_abbr_list):
         try:
-            team_name = race.get_driver(abbr)["Team"]
-            color = fastf1.plotting.get_team_color(team_name, race)
+            team_name = race.roster.loc[race.roster["Abbreviation"] == abbr, "Team"].iloc[0]
+            color = race.team_color(team_name)
             palette[abbr] = color if color else default_colors[i % len(default_colors)]
         except Exception:
             palette[abbr] = default_colors[i % len(default_colors)]
@@ -331,7 +293,7 @@ def set_main_plot_labels_and_title(
 
 
 def save_plot_final(fig: plt.Figure, filename_suptitle: str, dpi_val: int) -> str:
-    filename = f"../pic/{filename_suptitle.replace(' ', '_').replace(':', '')}.png"
+    filename = utils.plot_path(filename_suptitle)
     fig.savefig(filename, dpi=dpi_val, bbox_inches=None)
     return filename
 
@@ -353,18 +315,11 @@ def create_styled_caption(year: int, event_name: str, caption_title_base: str) -
 
 
 def driver_laptimes_distribution(
-    year: int, event_name: str, session_name: str, race: fastf1.core.Session, post: bool
+    year: int, event_name: str, session_name: str, race: HistoricalSession, post: bool
 ) -> dict:
-    utils.setup_fastf1_plotting()
 
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
-
-    try:
-        load_race_data(race)
-    except RuntimeError as e:
-        print(e)
-        return {"filename": None, "caption": "Error loading race data.", "post": False}
 
     finishing_order_abbr = get_point_finishers_abbr(race)
     if not finishing_order_abbr:
@@ -408,7 +363,7 @@ def driver_laptimes_distribution(
     filename_suptitle = f"{year} {event_name} Grand Prix Driver Lap Time Distributions"
     caption_title_base = f"{event_name} - Lap Time Distributions"
 
-    with plt.style.context(["science", "bright"]):
+    with plt.style.context(["science", "bright", "no-latex"]):
         plt.rcParams.update(
             {
                 "figure.dpi": DPI,

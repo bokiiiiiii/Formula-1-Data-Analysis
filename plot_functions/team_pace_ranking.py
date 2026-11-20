@@ -1,14 +1,11 @@
 import seaborn as sns
 from matplotlib import pyplot as plt
-import fastf1
 import textwrap
-import fastf1.plotting
 import numpy as np
-import scienceplots
-import matplotlib
 from scipy.interpolate import make_interp_spline
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
+from openf1_data import quick_laps
 from . import utils
 
 QUICKLAP_THRESHOLD = 1.05
@@ -17,7 +14,7 @@ B_SPLINE_DEG = 2
 
 
 def load_and_process_race_data(race):
-    laps = race.laps.pick_quicklaps(QUICKLAP_THRESHOLD)
+    laps = quick_laps(race.laps, QUICKLAP_THRESHOLD)
     transformed_laps = laps.copy()
     transformed_laps.loc[:, "LapTime (s)"] = laps["LapTime"].dt.total_seconds()
     return transformed_laps
@@ -34,7 +31,7 @@ def compute_team_order_by_median(transformed_laps):
 
 
 def generate_team_color_palette(team_order, race):
-    return {team: fastf1.plotting.get_team_color(team, race) for team in team_order}
+    return {team: race.team_color(team) for team in team_order}
 
 
 def plot_team_pace_ranking_styled(ax, transformed_laps, team_order, team_palette):
@@ -173,7 +170,7 @@ def plot_team_pace_ranking_styled(ax, transformed_laps, team_order, team_palette
 
 
 def save_plot_and_get_filename(fig, suptitle_text, dpi):
-    filename = f"../pic/{suptitle_text.replace(' ', '_').replace(':', '')}.png"
+    filename = utils.plot_path(suptitle_text)
     fig.savefig(filename, dpi=dpi, bbox_inches=None)
     return filename
 
@@ -203,7 +200,6 @@ def generate_styled_caption(year, event_name, suptitle_display_text):
 def team_pace_ranking(
     year: int, event_name: str, session_name: str, race_data, post: bool
 ) -> dict:
-    utils.setup_fastf1_plotting()
 
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)

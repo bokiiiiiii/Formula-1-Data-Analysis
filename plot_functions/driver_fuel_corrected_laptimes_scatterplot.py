@@ -3,15 +3,12 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.collections import PolyCollection
 from sklearn.linear_model import LinearRegression
-import fastf1
-import fastf1.plotting
 import pandas as pd
 import textwrap
 import numpy as np
-import scienceplots
-import matplotlib
+from openf1_data import quick_laps
 from . import utils
-from .utils import COMPOUND_COLORS, get_compound_color
+from .utils import COMPOUND_COLORS
 
 QUICKLAP_THRESHOLD = 1.05
 CORRECTED_LAPTIME_PER_LAP = 0.10
@@ -22,27 +19,9 @@ suptitle_text_global = ""
 subtitle_lower_text_global = ""
 
 
-def load_race_data(race):
-    """No-op: Session data is already loaded by PlotRunner."""
-    pass
-
-
 def get_driver_laps_cleaned_fuel_corrected(race, driver_abbr):
-    try:
-        laps_orig = race.laps.pick_drivers(driver_abbr).pick_quicklaps(
-            QUICKLAP_THRESHOLD
-        )
-    except Exception:
-        try:
-            driver_number = race.get_driver(driver_abbr)["DriverNumber"]
-            laps_orig = race.laps.pick_drivers(driver_number).pick_quicklaps(
-                QUICKLAP_THRESHOLD
-            )
-        except Exception as e_inner:
-            print(f"Could not get laps for {driver_abbr}: {e_inner}")
-            return pd.DataFrame()
+    laps = quick_laps(race.driver_laps(driver_abbr), QUICKLAP_THRESHOLD)
 
-    laps = laps_orig.copy()
     if laps.empty:
         return pd.DataFrame()
 
@@ -68,19 +47,7 @@ def get_driver_laps_cleaned_fuel_corrected(race, driver_abbr):
     else:
         laps.loc[:, "Compound"] = "UNKNOWN"
 
-    if "Stint" in laps.columns:
-        laps["StintLapNumber"] = (
-            laps.groupby("Stint")["LapNumber"]
-            .rank(method="first", ascending=True)
-            .astype(int)
-        )
-    else:
-        print(
-            f"Warning: No 'Stint' column for {driver_abbr}, cannot calculate StintLapNumber or fuel correction."
-        )
-        laps["StintLapNumber"] = laps["LapNumber"]
-        laps["FuelCorrectedLapTime(s)"] = laps["LapTime(s)"]
-        return laps
+    laps = laps.dropna(subset=["StintLapNumber"]).copy()
 
     laps["FuelCorrectedLapTime(s)"] = laps["LapTime(s)"] + CORRECTED_LAPTIME_PER_LAP * (
         laps["LapNumber"] - 1
@@ -232,7 +199,7 @@ def save_plot_and_get_filename(fig, suptitle_text_param, dpi_val):
     filename_safe_title = (
         suptitle_text_param.replace(" ", "_").replace(":", "").replace("/", "_")
     )
-    filename = f"../pic/{filename_safe_title}.png"
+    filename = utils.plot_path(filename_safe_title)
     fig.savefig(filename, dpi=dpi_val)
     return filename
 
@@ -386,11 +353,9 @@ def process_driver_data_single_fuel_corrected(
 def driver_fuel_corrected_laptimes_scatterplot(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    utils.setup_fastf1_plotting()
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
 
-    load_race_data(race)
     drivers_to_plot_abbrs = utils.get_podium_finishers(race)
     if not drivers_to_plot_abbrs:
         return {"filename": None, "caption": "Not enough data for plot.", "post": False}

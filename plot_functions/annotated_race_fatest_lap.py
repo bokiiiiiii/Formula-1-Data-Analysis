@@ -1,11 +1,6 @@
 from matplotlib import pyplot as plt
-import matplotlib.cm as cm
+from matplotlib import colormaps
 import textwrap
-import scienceplots
-import matplotlib
-import fastf1
-import fastf1.plotting
-import fastf1.utils
 from logger_config import get_logger
 from . import utils
 
@@ -104,11 +99,11 @@ def annotated_race_fatest_lap(
     def plot_delta_time(
         ax, compared_laps, d_max, driver_line_colors_param, drivers_abbr_list_param
     ):
-        delta_time, ref_tel, _ = fastf1.utils.delta_time(
+        delta_time, ref_tel, _ = race.delta_time(
             compared_laps[0], compared_laps[1]
         )
         twin = ax.twinx()
-        cmap = cm.get_cmap("tab20c")
+        cmap = colormaps["tab20c"]
         delta_line_color = cmap(8)
 
         twin.plot(
@@ -216,11 +211,11 @@ def annotated_race_fatest_lap(
         d_max,
     ):
         # In race context, we pick fastest lap directly, not from Q3 sessions
-        lap = race.laps[race.laps["Driver"] == driver_abbr_param].pick_fastest()
+        lap = race.fastest_lap(driver_abbr_param)
         driver_data["compared_laps"].append(lap)
-        car_data = lap.get_car_data().add_distance()
+        car_data = race.car_data(lap)
 
-        team_color_for_plot = fastf1.plotting.get_team_color(lap["Team"], race)
+        team_color_for_plot = race.team_color(lap["Team"])
 
         lap_time = lap["LapTime"]
         lap_time_str = get_lap_time_str(lap_time)
@@ -261,10 +256,6 @@ def annotated_race_fatest_lap(
 
         return v_min, v_max, d_max
 
-    # Note: Using mpl_timedelta_support=True for this plot (special requirement)
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=True, color_scheme=None, misc_mpl_mods=False
-    )
 
     DPI = utils.DEFAULT_DPI
     FIG_SIZE = (1080 / DPI, 1350 / DPI)
@@ -336,7 +327,7 @@ def annotated_race_fatest_lap(
         )
         laptime_diff_str = f"{laptime_diff % 60:.3f}"
 
-        circuit_info = utils.get_circuit_info_or_none(race)
+        circuit_info = race.circuit
         if circuit_info is not None:
             plot_corners(ax, circuit_info, v_min, v_max)
         else:
@@ -389,7 +380,7 @@ def annotated_race_fatest_lap(
         # suptitle_text is used by generate_caption
         suptitle_text = plot_display_suptitle
 
-        subtitle_text = "with Track Corners Annotated"
+        subtitle_text = "with Track Corners Annotated" if circuit_info is not None else "Speed by Distance"
         subtitle_lower_text = (
             f"{driver_data['abbreviations'][0]} vs {driver_data['abbreviations'][1]}"
         )
@@ -411,7 +402,7 @@ def annotated_race_fatest_lap(
             color="black",
         )
 
-        filename = f"../pic/{suptitle_for_filename.replace(' ', '_')}.png"
+        filename = utils.plot_path(suptitle_for_filename)
         save_plot(fig, filename)
         plt.close(fig)
 

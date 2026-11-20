@@ -1,18 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-import fastf1
-import fastf1.plotting
-import pandas as pd
 import textwrap
-import os
 import warnings
 import itertools
-import scienceplots
-from scipy import stats
-from matplotlib.ticker import MaxNLocator
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
 from . import utils
 
 # Advanced Fitting
@@ -99,11 +90,6 @@ DEFAULT_CURVES = {
 }
 
 
-def load_race_data(race):
-    """No-op: Session data is already loaded by PlotRunner."""
-    pass
-
-
 def create_styled_caption_monte_carlo(
     year_val,
     event_name_val,
@@ -137,7 +123,7 @@ def create_styled_caption_monte_carlo(
 def get_driver_actual_strategy(race, driver_abbr):
     if race.laps is None or race.laps.empty:
         return "No data"
-    laps = race.laps.pick_driver(driver_abbr).copy()
+    laps = race.driver_laps(driver_abbr).copy()
     laps["Compound"] = laps["Compound"].fillna("UNKNOWN")
     compound_map = {
         "SOFT": "S",
@@ -157,7 +143,7 @@ def get_driver_actual_strategy(race, driver_abbr):
 def get_actual_tyre_counts(race, driver_abbr):
     if race.laps is None or race.laps.empty:
         return {"S": 0, "M": 0, "H": 0}
-    laps = race.laps.pick_driver(driver_abbr)
+    laps = race.driver_laps(driver_abbr)
     stints = laps.groupby("Stint")["Compound"].first()
     counts = {"S": 0, "M": 0, "H": 0}
     compound_map = {"SOFT": "S", "MEDIUM": "M", "HARD": "H"}
@@ -170,14 +156,13 @@ def get_actual_tyre_counts(race, driver_abbr):
 
 def prepare_race_data(race):
     """Preprocesses laps: filtering, time conversion, and stint indexing."""
-    laps = race.laps.pick_accurate().pick_track_status("1").copy()
+    laps = race.green_laps.copy()
     if laps.empty:
         return laps
 
     laps["LapTime(s)"] = laps["LapTime"].dt.total_seconds()
-    laps["StintLapNumber"] = laps.groupby("Stint")["LapNumber"].rank(
-        method="first", ascending=True
-    )
+    laps = laps.dropna(subset=["StintLapNumber"])
+    laps = laps[~laps["PitIn"] & ~laps["PitOut"].eq(True)].copy()
 
     if "TyreLife" not in laps.columns:
         laps["TyreLife"] = laps["StintLapNumber"]
@@ -188,7 +173,7 @@ def prepare_race_data(race):
 
 def calculate_actual_stint_stats(race):
     """Optimized Robust Mean/Max stint length calculation."""
-    laps = race.laps.pick_accurate().pick_track_status("1")
+    laps = race.green_laps
     stats_data = {}
 
     for comp in ["SOFT", "MEDIUM", "HARD"]:
@@ -208,24 +193,20 @@ def calculate_actual_stint_stats(race):
             valid = valid[(valid >= q1 - 1.5 * (q3 - q1))]
 
         if valid.empty:
-            valid = (
-                counts[counts > 3]
-                if not counts.empty
-                else pd.Series([DEFAULT_STINT_STATS[code]["mean"]])
-            )
-
-        stats_data[code] = {"mean": valid.mean(), "max": valid.max()}
+            stats_data[code] = DEFAULT_STINT_STATS[code]
+        else:
+            stats_data[code] = {"mean": valid.mean(), "max": valid.max()}
 
     return stats_data
 
 
 def calculate_avg_pit_loss(race):
-    laps = race.laps.pick_accurate().pick_track_status("1")
+    laps = race.green_laps
     if laps.empty:
         return DEFAULT_PIT_LOSS
 
     base_pace = (
-        laps[laps["PitInTime"].isna() & laps["PitOutTime"].isna()]["LapTime"]
+        laps[~laps["PitIn"] & ~laps["PitOut"].eq(True)]["LapTime"]
         .dt.total_seconds()
         .median()
     )
@@ -233,10 +214,10 @@ def calculate_avg_pit_loss(race):
         return DEFAULT_PIT_LOSS
 
     in_loss = (
-        laps[~laps["PitInTime"].isna()]["LapTime"].dt.total_seconds() - base_pace
+        laps[laps["PitIn"]]["LapTime"].dt.total_seconds() - base_pace
     ).median()
     out_loss = (
-        laps[~laps["PitOutTime"].isna()]["LapTime"].dt.total_seconds() - base_pace
+        laps[laps["PitOut"].eq(True)]["LapTime"].dt.total_seconds() - base_pace
     ).median()
 
     total = (in_loss if not np.isnan(in_loss) else 4.0) + (
@@ -245,7 +226,7 @@ def calculate_avg_pit_loss(race):
 
     if np.isnan(total) or total < 15 or total > 40:
         return DEFAULT_PIT_LOSS
-    return total + 100
+    return total
 
 
 def optimize_fuel_correction(laps_df):
@@ -253,7 +234,7 @@ def optimize_fuel_correction(laps_df):
     if laps_df.empty:
         return DEFAULT_CORRECTION
 
-    counts = laps_df.groupby("Compound")["Stint"].nunique()
+    counts = laps_df.groupby(["Driver", "Compound"])["Stint"].nunique()
     if not any(counts > 1):
         return DEFAULT_CORRECTION
 
@@ -265,8 +246,8 @@ def optimize_fuel_correction(laps_df):
         rmsd_sum, n = 0, 0
 
         repeat_compounds = counts[counts > 1].index
-        for comp in repeat_compounds:
-            c_data = laps_df[laps_df["Compound"] == comp]
+        for driver, comp in repeat_compounds:
+            c_data = laps_df[(laps_df["Driver"] == driver) & (laps_df["Compound"] == comp)]
             stints = c_data["Stint"].unique()
             for i in range(len(stints)):
                 s1 = c_data[c_data["Stint"] == stints[i]].set_index("StintLapNumber")[
@@ -553,11 +534,7 @@ def plot_strategy_distribution_styled(
 def monte_carlo_race_strategy(
     year: int, event_name: str, session_name: str, race, post: bool
 ) -> dict:
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False, color_scheme=None, misc_mpl_mods=False
-    )
 
-    load_race_data(race)
 
     winner_list = utils.get_winner(race)
     if not winner_list:
@@ -585,8 +562,11 @@ def monte_carlo_race_strategy(
         if validate_strategy_with_inventory(s["compounds"], actual_used_counts)
     ]
 
-    sc_prob = get_safety_car_probability(event_name)
-    fuel_factor = get_fuel_consumption_factor(event_name)
+    if not valid_strategies:
+        return utils.create_plot_return_dict(None, "No dry race strategy matches the tyre data.", post, False)
+
+    sc_prob = get_safety_car_probability(race.event_name)
+    fuel_factor = get_fuel_consumption_factor(race.event_name)
 
     fuel_k_adjusted = fuel_k * fuel_factor
 

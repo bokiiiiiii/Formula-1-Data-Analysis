@@ -6,8 +6,8 @@ import textwrap
 import numpy as np
 import scipy.ndimage as ndimage
 from matplotlib import pyplot as plt
-import scienceplots
 
+from openf1_data import MissingTelemetry, quick_laps
 from . import utils
 from logger_config import get_logger
 
@@ -22,45 +22,37 @@ def prepare_contour_data(race, driver_abbr: str, dist_bins: int = 800):
     """Interpolates telemetry data onto a structured grid.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         driver_abbr: Driver abbreviation
         dist_bins: Number of distance bins for interpolation
 
     Returns:
         Tuple of (matrix, lap_numbers, dist_axis) or (None, None, None) if data unavailable
     """
-    try:
-        driver_laps = race.laps.pick_driver(driver_abbr).pick_quicklaps(threshold=1.15)
-    except Exception:
-        driver_laps = race.laps.pick_driver(driver_abbr)
+    driver_laps = quick_laps(race.driver_laps(driver_abbr), threshold=1.15)
 
-    if driver_laps.empty:
-        return None, None, None
-
-    fastest_lap = driver_laps.pick_fastest()
-    if fastest_lap is None:
-        return None, None, None
-
-    circuit_length = fastest_lap.get_telemetry()["Distance"].max()
-    dist_axis = np.linspace(0, circuit_length, num=dist_bins)
-
-    speed_matrix_list = []
+    progress = np.linspace(0, 1, num=dist_bins)
+    speeds = []
     lap_numbers = []
-
+    lengths = []
+    lap_times = []
     for _, lap in driver_laps.iterrows():
         try:
-            tel = lap.get_telemetry()
-            speed_interp = np.interp(dist_axis, tel["Distance"], tel["Speed"])
-            speed_matrix_list.append(speed_interp)
-            lap_numbers.append(lap["LapNumber"])
-        except Exception:
+            tel = race.car_data(lap)
+        except MissingTelemetry:
             continue
+        length = tel["Distance"].iloc[-1]
+        if length > 0:
+            speeds.append(np.interp(progress, tel["Distance"] / length, tel["Speed"]))
+            lap_numbers.append(lap["LapNumber"])
+            lengths.append(length)
+            lap_times.append(lap["LapTime"])
 
-    if not speed_matrix_list:
+    if len(speeds) < 2:
         return None, None, None
-
-    matrix = np.array(speed_matrix_list).T
-    return matrix, np.array(lap_numbers), dist_axis
+    # Use the fastest lap with complete telemetry to label the shared distance axis.
+    dist_axis = progress * lengths[np.argmin(lap_times)]
+    return np.asarray(speeds).T, np.asarray(lap_numbers), dist_axis
 
 
 def configure_plot_style(ax, year, event, driver, lap_numbers, dist_axis):
@@ -158,7 +150,7 @@ def driver_race_evolution_heatmap(
         year: Season year
         event_name: Grand Prix name
         session_name: Session type (e.g., "R" for Race)
-        race: FastF1 session object
+        race: historical session
         post: Whether to post to Instagram
 
     Returns:
@@ -166,9 +158,6 @@ def driver_race_evolution_heatmap(
     """
     try:
         utils.setup_matplotlib_style(PLOT_CONFIG)
-        utils.load_race_data(
-            race, telemetry=True, laps=True, weather=False, logger_obj=logger
-        )
 
         target_drivers = utils.get_driver_abbreviations(
             race, num_drivers=1, logger_obj=logger
@@ -190,7 +179,7 @@ def driver_race_evolution_heatmap(
                 False,
             )
 
-        with plt.style.context(["science", "bright"]):
+        with plt.style.context(["science", "bright", "no-latex"]):
             utils.setup_matplotlib_style(PLOT_CONFIG)
             fig, ax = utils.create_figure_and_axis(PLOT_CONFIG)
 

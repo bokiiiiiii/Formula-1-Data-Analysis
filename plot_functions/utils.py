@@ -4,33 +4,40 @@ This module contains common functions used across multiple plotting modules
 to avoid code duplication and improve maintainability.
 """
 
+from openf1_data import HistoricalSession, quick_laps
 import logging
-import os
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
-import warnings
+import textwrap
+from contextvars import ContextVar
+from contextlib import contextmanager
 
-import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-import fastf1
-import fastf1.plotting
+import scienceplots  # noqa: F401 - registers the science, bright and no-latex styles
 from matplotlib.figure import Figure
 
 logger = logging.getLogger(__name__)
 
-warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
-warnings.filterwarnings("ignore", category=UserWarning, module="fastf1")
+
+_output_dir = ContextVar("plot_output_dir", default=Path("../pic"))
 
 
-def get_circuit_info_or_none(session):
-    """Return circuit metadata when FastF1 provides it, otherwise None."""
+@contextmanager
+def plot_directory(folder):
+    token = _output_dir.set(Path(folder))
     try:
-        return session.get_circuit_info()
-    except Exception as error:
-        logger.warning("Circuit metadata unavailable: %s", error)
-        return None
+        yield
+    finally:
+        _output_dir.reset(token)
+
+
+def plot_path(title, folder=None):
+    directory = Path(folder) if folder is not None else _output_dir.get()
+    directory.mkdir(parents=True, exist_ok=True)
+    name = title.replace(" ", "_").replace(":", "").replace("/", "_").replace(chr(92), "_")
+    return str(directory / f"{name}.png")
 
 
 COMPOUND_COLORS = {
@@ -53,23 +60,14 @@ def get_compound_color(compound: str) -> str:
     Returns:
         Color hex string
     """
-    if hasattr(fastf1.plotting, "get_compound_color"):
-        try:
-            return fastf1.plotting.get_compound_color(compound, session=None)
-        except Exception:
-            pass
-    if hasattr(fastf1.plotting, "COMPOUND_COLORS"):
-        return fastf1.plotting.COMPOUND_COLORS.get(
-            compound, COMPOUND_COLORS.get(compound, "#808080")
-        )
     return COMPOUND_COLORS.get(compound, "#808080")
 
 
-def get_point_finishers_abbr(race: fastf1.core.Session, top_n: int = 10) -> List[str]:
+def get_point_finishers_abbr(race: HistoricalSession, top_n: int = 10) -> List[str]:
     """Get abbreviations of drivers who finished in points positions.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         top_n: Number of top finishers to return (default 10 for points)
 
     Returns:
@@ -119,49 +117,15 @@ class PlotConfig:
         self.font_size_label = font_size_label
 
 
-def load_race_data(
-    race: fastf1.core.Session,
-    telemetry: bool = True,
-    laps: bool = True,
-    weather: bool = False,
-    logger_obj: Optional[logging.Logger] = None,
-) -> None:
-    """Load race data with error handling.
-
-    Args:
-        race: FastF1 session object
-        telemetry: Whether to load telemetry data
-        laps: Whether to load lap data
-        weather: Whether to load weather data
-        logger_obj: Logger instance for logging
-
-    Raises:
-        RuntimeError: If data loading fails
-    """
-    log = logger_obj or logger
-    try:
-        race.load(telemetry=telemetry, laps=laps, weather=weather)
-        event_name = race.event.get("EventName", "Unknown Event")
-        session_name = race.session_info.get("Name", "Unknown Session")
-        log.info(f"Successfully loaded {event_name} {session_name} data")
-    except Exception as e:
-        try:
-            event_name = race.event.get("EventName", "Unknown Event")
-        except:
-            event_name = "Unknown Event"
-        log.error(f"Error loading {event_name} data: {str(e)}")
-        raise RuntimeError(f"Error loading race data: {e}") from e
-
-
 def get_driver_abbreviations(
-    race: fastf1.core.Session,
+    race: HistoricalSession,
     num_drivers: int = 1,
     logger_obj: Optional[logging.Logger] = None,
 ) -> List[str]:
     """Get driver abbreviations from race results.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         num_drivers: Number of top drivers to return
         logger_obj: Logger instance for logging
 
@@ -188,11 +152,6 @@ def setup_matplotlib_style(config: PlotConfig) -> None:
     Args:
         config: PlotConfig instance
     """
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False,
-        color_scheme=None,
-        misc_mpl_mods=False,
-    )
 
     plt.rcParams["figure.dpi"] = config.dpi
     plt.rcParams["savefig.dpi"] = config.dpi
@@ -222,7 +181,7 @@ def save_plot(
     fig: Figure,
     filename: str,
     config: PlotConfig,
-    folder_path: str = "../pic",
+    folder_path: Optional[str] = None,
     logger_obj: Optional[logging.Logger] = None,
 ) -> str:
     """Save plot to file.
@@ -239,13 +198,7 @@ def save_plot(
     """
     log = logger_obj or logger
 
-    Path(folder_path).mkdir(parents=True, exist_ok=True)
-
-    safe_filename = (
-        filename.replace(" ", "_").replace(":", "").replace("/", "_").replace("\\", "_")
-    )
-
-    filepath = os.path.join(folder_path, f"{safe_filename}.png")
+    filepath = plot_path(filename, folder_path)
 
     try:
         fig.savefig(filepath, dpi=config.dpi, bbox_inches=None)
@@ -317,7 +270,7 @@ def set_title(
 
 
 def get_driver_laps_cleaned(
-    race: fastf1.core.Session,
+    race: HistoricalSession,
     driver_abbr: str,
     quicklap_threshold: float = 1.05,
     logger_obj: Optional[logging.Logger] = None,
@@ -325,7 +278,7 @@ def get_driver_laps_cleaned(
     """Get cleaned lap data for a specific driver.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         driver_abbr: Driver abbreviation
         quicklap_threshold: Threshold for picking quick laps
         logger_obj: Logger instance for logging
@@ -335,17 +288,7 @@ def get_driver_laps_cleaned(
     """
     log = logger_obj or logger
 
-    try:
-        driver_number = race.get_driver(driver_abbr)["DriverNumber"]
-    except Exception as e:
-        log.warning(f"Could not get driver number for {driver_abbr}: {str(e)}")
-        return pd.DataFrame()
-
-    try:
-        laps = race.laps.pick_drivers(driver_number).pick_quicklaps(quicklap_threshold)
-    except Exception as e:
-        log.warning(f"Error picking quick laps for {driver_abbr}: {str(e)}")
-        laps = race.laps.pick_drivers(driver_number)
+    laps = quick_laps(race.driver_laps(driver_abbr), quicklap_threshold)
 
     if laps.empty:
         log.debug(f"No laps found for driver {driver_abbr}")
@@ -387,14 +330,14 @@ def get_driver_laps_cleaned(
 
 
 def get_stints_info_for_driver(
-    race: fastf1.core.Session,
+    race: HistoricalSession,
     driver_abbr: str,
     logger_obj: Optional[logging.Logger] = None,
 ) -> pd.DataFrame:
     """Get stint information for a driver.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         driver_abbr: Driver abbreviation
         logger_obj: Logger instance for logging
 
@@ -403,15 +346,7 @@ def get_stints_info_for_driver(
     """
     log = logger_obj or logger
 
-    try:
-        driver_number = race.get_driver(driver_abbr)["DriverNumber"]
-    except Exception as e:
-        log.warning(f"Could not get driver number for {driver_abbr}: {str(e)}")
-        return pd.DataFrame()
-
-    stints_df = race.laps.pick_drivers(driver_number)[
-        ["Stint", "LapNumber", "Compound"]
-    ]
+    stints_df = race.driver_laps(driver_abbr)[["Stint", "LapNumber", "Compound"]]
 
     stint_summary = (
         stints_df.groupby("Stint")
@@ -445,14 +380,14 @@ def format_lap_time(
 
 
 def validate_race_results(
-    race: fastf1.core.Session,
+    race: HistoricalSession,
     min_drivers: int = 1,
     logger_obj: Optional[logging.Logger] = None,
 ) -> bool:
     """Validate race results.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         min_drivers: Minimum number of drivers required
         logger_obj: Logger instance for logging
 
@@ -507,20 +442,6 @@ def safe_close_figures() -> None:
         logger.warning(f"Error closing figures: {str(e)}")
 
 
-def enable_cache(cache_path: str = "../cache") -> None:
-    """Enable FastF1 caching.
-
-    Args:
-        cache_path: Path to cache directory
-    """
-    try:
-        Path(cache_path).mkdir(parents=True, exist_ok=True)
-        fastf1.Cache.enable_cache(cache_path)
-        logger.info(f"Cache enabled at {cache_path}")
-    except Exception as e:
-        logger.warning(f"Failed to enable cache: {str(e)}")
-
-
 def create_styled_figure(
     figsize: Tuple[float, float] = (8.64, 10.8),
     dpi: int = 125,
@@ -548,7 +469,7 @@ def apply_scienceplots_style():
     Returns:
         Context manager for plt.style.context
     """
-    return plt.style.context(["science", "bright"])
+    return plt.style.context(["science", "bright", "no-latex"])
 
 
 def configure_plot_params(dpi: int = 125):
@@ -568,31 +489,6 @@ DEFAULT_DPI = 125
 DEFAULT_FIG_SIZE = (8.64, 10.8)
 
 
-def setup_fastf1_plotting():
-    """Setup FastF1 plotting with standard configuration."""
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False,
-        color_scheme=None,
-        misc_mpl_mods=False,
-    )
-
-
-def load_session_data(race: fastf1.core.Session):
-    """Setup matplotlib for session data visualization.
-
-    Note: Session data is already loaded by PlotRunner.
-    This function only sets up matplotlib configuration.
-
-    Args:
-        race: FastF1 session object
-    """
-    fastf1.plotting.setup_mpl(
-        mpl_timedelta_support=False,
-        color_scheme=None,
-        misc_mpl_mods=False,
-    )
-
-
 def save_plot_to_file(fig, title: str, dpi: int = DEFAULT_DPI) -> str:
     """Save plot to file with standardized naming.
 
@@ -604,9 +500,7 @@ def save_plot_to_file(fig, title: str, dpi: int = DEFAULT_DPI) -> str:
     Returns:
         Path to saved file
     """
-    filename = (
-        f"../pic/{title.replace(' ', '_').replace(':', '').replace('/', '_')}.png"
-    )
+    filename = plot_path(title)
     fig.savefig(filename, dpi=dpi, bbox_inches=None)
     return filename
 
@@ -645,7 +539,7 @@ def get_top_n_finishers(race, n: int = 10) -> list[str]:
     """Get abbreviations of top N finishers.
 
     Args:
-        race: FastF1 session object
+        race: historical session
         n: Number of finishers to return
 
     Returns:
@@ -661,7 +555,7 @@ def get_winner(race) -> list[str]:
     """Get winner abbreviation.
 
     Args:
-        race: FastF1 session object
+        race: historical session
 
     Returns:
         List containing winner abbreviation
@@ -673,7 +567,7 @@ def get_podium_finishers(race) -> list[str]:
     """Get podium finishers abbreviations.
 
     Args:
-        race: FastF1 session object
+        race: historical session
 
     Returns:
         List of top 3 driver abbreviations
